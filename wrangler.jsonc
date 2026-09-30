@@ -1,0 +1,31 @@
+// Deploy no Cloudflare Workers — somente arquivos estáticos (sem código de Worker).
+//
+// `wrangler deploy` roda o build antes de publicar: `python3 src/build.py` gera
+// dist/index.html. O dist/ NÃO fica no repositório (contém o endereço do projeto
+// Supabase), por isso é gerado aqui, a cada deploy.
+//
+// O build precisa de duas variáveis (as mesmas do .env.example):
+//   SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY
+// No Cloudflare (deploy pelo Git): Worker → Settings → Build → Variables and secrets.
+// Na sua máquina: o arquivo .env na raiz, que o build lê sozinho.
+// NUNCA configure aqui a chave secreta — só a publicável vai para o navegador.
+{
+  "name": "academia-do-motorista",
+  // data conservadora de propósito: uma data mais nova do que o runtime local
+  // suporta faz o `wrangler dev` recusar (medido: v4.86 aceita até 2026-05-03).
+  // Para um Worker só de arquivos estáticos a data não altera o comportamento.
+  "compatibility_date": "2026-04-01",
+
+  "build": {
+    "command": "python3 src/build.py"
+  },
+
+  "assets": {
+    "directory": "./dist",
+    // "/" entrega dist/index.html; "/index.html" redireciona para "/"
+    "html_handling": "auto-trailing-slash",
+    // a navegação do app é por "#/rota" (nunca chega ao servidor); qualquer
+    // outro caminho também devolve o index.html em vez de 404
+    "not_found_handling": "single-page-application"
+  }
+}

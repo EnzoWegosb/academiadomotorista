@@ -40,11 +40,40 @@ Detalhes em [`supabase/README.md`](supabase/README.md).
 ```bash
 cp .env.example .env          # preencha — o .env NUNCA vai para o git
 python3 supabase/aplica.py tudo      # tabelas, regras, conteúdo, Auth, função, conta "supervisor"
-python3 src/build.py                 # gera dist/academia_do_motorista.html
+python3 src/build.py                 # gera dist/index.html
 ```
 
-Publique `dist/academia_do_motorista.html` em qualquer servidor **https**. Aberto
-direto do disco (`file://`) o YouTube recusa tocar os vídeos (erro 153).
+Publique o conteúdo de `dist/` em qualquer servidor **https**. Aberto direto do
+disco (`file://`) o YouTube recusa tocar os vídeos (erro 153).
+
+## Deploy no Cloudflare Workers
+
+O `wrangler.jsonc` publica `dist/` como arquivos estáticos (sem código de Worker):
+`/` entrega o `index.html`, `/index.html` redireciona para `/` e qualquer outro
+caminho também devolve a aplicação. O `wrangler deploy` roda `python3 src/build.py`
+antes de publicar — o `dist/` não fica no repositório.
+
+**Pelo painel (deploy a cada push no GitHub):** Workers & Pages → Create → Import a
+repository → este repositório. Em *Settings → Build → Variables and secrets*,
+cadastre as duas variáveis que o build usa:
+
+| variável | valor |
+|---|---|
+| `SUPABASE_URL` | `https://SEU-PROJETO.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | a chave **publicável** (`sb_publishable_…`) |
+
+Só essas duas. A chave secreta e o token do Supabase **não** vão para o
+Cloudflare: são usados apenas pelos scripts de administração, na sua máquina.
+
+**Pela linha de comando** (Node 22+, com o `.env` preenchido):
+
+```bash
+npx wrangler login
+npx wrangler deploy
+```
+
+Depois do primeiro deploy, os links de convite passam a usar o endereço do
+Worker automaticamente (eles são montados a partir da página aberta).
 
 Opcional: `python3 supabase/exemplos.py criar` cria 10 motoristas fictícios, um em
 cada ponto da trilha (`remover` apaga só esses).
@@ -75,7 +104,8 @@ pública por design: quem protege os dados são as regras do banco.
 
 ```
 src/app/        telas, cliente do Supabase, player (JS/CSS)
-src/build.py    monta o HTML único em dist/
+src/build.py    monta o HTML único em dist/index.html
+wrangler.jsonc  deploy no Cloudflare Workers (assets estáticos de dist/)
 src/dados.py    conteúdo dos treinamentos (vídeos e quizzes)
 supabase/       esquema SQL, Edge Function, aplicação e exemplos
 tests/          testes do banco e de ponta a ponta

@@ -29,7 +29,7 @@ import http.server, threading, functools
 _srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(
     type('Q', (http.server.SimpleHTTPRequestHandler,), {'log_message': lambda *a: None}), directory=os.path.join(RAIZ, 'dist')))
 threading.Thread(target=_srv.serve_forever, daemon=True).start()
-ALVO = sys.argv[1] if len(sys.argv) > 1 else f'http://127.0.0.1:{_srv.server_address[1]}/academia_do_motorista.html'
+ALVO = sys.argv[1] if len(sys.argv) > 1 else f'http://127.0.0.1:{_srv.server_address[1]}/index.html'
 SHOTS = os.path.join(RAIZ, 'shots')
 SENHA_SUP = aplica.segredo('ACADEMIA_SUPERVISOR_SENHA')
 GAB = {m['id']: [q[2] for q in m['quiz']] for m in dados.MODULOS}

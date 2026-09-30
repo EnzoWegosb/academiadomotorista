@@ -3,7 +3,8 @@
 """
 Academia do Motorista — gerador da aplicação.
 
-Monta um HTML único (css, js e ícone embutidos) em `dist/academia_do_motorista.html`.
+Monta um HTML único (css, js e ícone embutidos) em `dist/index.html` — o nome que
+o Cloudflare Workers (e qualquer servidor estático) entrega na rota `/`.
 Precisa de SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no ambiente ou no `.env`.
 
 A chave PUBLICÁVEL vai dentro do HTML — isso é normal no Supabase: ela é pública
@@ -70,7 +71,7 @@ var SUPA_KEY = {json.dumps(chave)};
 
 if __name__ == '__main__':
     os.makedirs(DIST, exist_ok=True)
-    destino = os.path.join(DIST, 'academia_do_motorista.html')
+    destino = os.path.join(DIST, 'index.html')
     html = monta()
     with open(destino, 'w', encoding='utf-8') as f:
         f.write(html)
