@@ -1,0 +1,560 @@
+/* ============================================================
+   Academia do Motorista — design system com a marca ANYCAST
+   Paleta lida no CSS do site anycast.excom.ai (--bg #0a0e17, --card #141c30,
+   --border #1e2a45, --cyan #00b4d8) e no ícone oficial (gradiente #45C4F0→#30C5E1).
+   O ciano #00B4D8 dá 2,46:1 sobre branco: só preenchimento, gráfico e fundo
+   escuro. Texto ciano sobre claro usa #00789A (5,06:1).
+   Todos os tons de TEXTO foram medidos em WCAG (ver t_app.py).
+   ============================================================ */
+:root{
+  /* superfícies claras */
+  --bg:    #F4F6F9;
+  --surf:  #FFFFFF;
+  --surf2: #EEF1F5;
+  --surf3: #E3E8EF;
+  --line:  #E1E6ED;
+  --line2: #CBD3DE;
+
+  /* tinta sobre claro */
+  --ink:  #0A0E17;   /* 19.3:1 sobre branco */
+  --ink2: #1E2A45;
+  --ink3: #5A6478;   /* 5.95:1 sobre branco */
+
+  /* navy — o casco da aplicação */
+  --nv:   #0A0E17;    /* casco escuro = fundo do site Anycast */
+  --nv2:  #141C30;
+  --nv3:  #1E2A45;
+  --nvl:  rgba(255,255,255,.08);
+  --on-nv:  #FFFFFF;
+  --on-nv2: #C8D0E0;  /* 12.5:1 sobre --nv */
+  --on-nv3: #8892A4;  /* 6.2:1 sobre --nv — reprova sobre branco, só no escuro */
+
+  /* marca */
+  --az:    #00B4D8;   /* ciano Anycast — preenchimento e grafismo */
+  --az-tx: #00789A;   /* texto sobre claro — 5.06:1 */
+  --az-cl: #33C6E6;   /* sobre o casco escuro — 9.5:1 */
+  --az-bg: #E8F8FC;
+
+  /* estados — medidos, ver nota em .pill */
+  --ok:    #0F6B4F;  --ok-bg:#DCF3EA;  --ok-cl:#4FD6A4;
+  --and:   #8A5300;  --and-bg:#FFF0D6; --and-cl:#FFB43D;
+  --neu:   #55647A;  --neu-bg:#EBF0F5; --neu-cl:#9DB0C4;
+  --err:   #A3261E;  --err-bg:#FCE7E5; --err-cl:#FF8A80;
+
+  --r:8px; --r2:14px; --r3:20px;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --sh:0 1px 2px rgba(10,14,23,.04),0 6px 20px rgba(10,14,23,.06);
+  --sh2:0 18px 50px rgba(10,14,23,.14);
+  --lat:268px;   /* largura da barra lateral */
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+img{max-width:100%;display:block}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{margin:0;line-height:1.14;letter-spacing:-.02em;font-weight:730}
+p{margin:0}
+:focus-visible{outline:3px solid var(--az);outline-offset:2px;border-radius:6px}
+
+.mono{font-family:var(--mono)}
+.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.lbl-nv{color:var(--on-nv3)}
+.h1{font-size:clamp(25px,3.1vw,35px)}
+.h2{font-size:clamp(20px,2.1vw,25px)}
+.h3{font-size:17.5px;font-weight:690}
+.sub{color:var(--ink3);font-size:15px}
+
+/* ============================================================ botões */
+.bt{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:13px 24px;border-radius:999px;font-weight:640;font-size:15px;
+  transition:.2s cubic-bezier(.4,0,.2,1);white-space:nowrap;
+}
+.bt:disabled{opacity:.45;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+.bt-pr{background:var(--ink);color:#fff;box-shadow:0 5px 16px rgba(10,14,23,.22)}
+.bt-pr:hover:not(:disabled){background:#1E2A45;transform:translateY(-2px)}
+.bt-az{background:var(--az);color:#0A0E17}          /* 7.8:1 — medido */
+.bt-az:hover:not(:disabled){background:#33C6E6;transform:translateY(-2px)}
+.bt-ok{background:var(--ok);color:#fff}
+.bt-ok:hover:not(:disabled){background:#0C5A42;transform:translateY(-2px)}
+.bt-ln{border:1.5px solid var(--line2);color:var(--ink);background:var(--surf)}
+.bt-ln:hover:not(:disabled){border-color:var(--ink);transform:translateY(-2px)}
+.bt-gh{color:var(--az-tx);padding:10px 12px}
+.bt-gh:hover{color:var(--ink)}
+.bt-sm{padding:9px 17px;font-size:13.5px}
+.bt-bl{width:100%}
+.bts{display:flex;gap:11px;flex-wrap:wrap;align-items:center}
+
+/* ============================================================ casco */
+.app{display:flex;min-height:100vh}
+.lat{
+  width:var(--lat);flex:none;background:var(--nv);color:var(--on-nv);
+  display:flex;flex-direction:column;padding:26px 20px;
+  position:fixed;inset:0 auto 0 0;z-index:40;
+}
+.lat-logo{height:24px;width:auto;margin-bottom:6px}
+.lat-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--az-cl);margin-bottom:30px}
+.lat nav{display:flex;flex-direction:column;gap:3px}
+.nv-it{
+  display:flex;align-items:center;gap:13px;padding:12px 14px;border-radius:12px;
+  color:var(--on-nv2);font-size:14.5px;font-weight:560;transition:.2s;text-align:left;width:100%;
+}
+.nv-it:hover{background:rgba(255,255,255,.07);color:#fff}
+.nv-it.on{background:var(--az);color:#0A0E17;font-weight:680}
+.nv-it .ic{width:19px;flex:none;display:flex}
+.lat-ft{margin-top:auto;padding-top:22px;border-top:1px solid var(--nvl)}
+.who{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+/* cor SÓLIDA por baixo do gradiente: é ela que sustenta o contraste das
+   iniciais em branco (6.15:1) e é a única que um medidor consegue ler.
+   Com só o gradiente, as iniciais mediam contra o branco da página. */
+.av{
+  width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;font-weight:720;font-size:14px;letter-spacing:-.01em;
+  background-color:#006A88;
+  background-image:linear-gradient(135deg,#0096B8,#006A88);color:#fff;
+}
+.av-lg{width:62px;height:62px;font-size:21px}
+.av-sm{width:33px;height:33px;font-size:12px}
+.who-n{font-size:14px;font-weight:650;color:#fff;line-height:1.3}
+.who-r{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--on-nv3);margin-top:2px}
+
+.main{flex:1;min-width:0;margin-left:var(--lat);padding:34px 38px 70px}
+.topo{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;margin-bottom:28px;flex-wrap:wrap}
+
+/* barra superior e navegação inferior — só no celular */
+.tbar{display:none;position:sticky;top:0;z-index:38;background:var(--nv);color:#fff;padding:13px 18px;align-items:center;gap:13px}
+.tbar img{height:20px}
+.bnav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:39;background:var(--nv);border-top:1px solid var(--nvl);padding:7px 6px calc(7px + env(safe-area-inset-bottom))}
+/* Quando a página é aberta por um link publicado, a plataforma injeta um selo
+   fixo no rodapé (#ac-badge) que cobria o item do meio do menu inferior no
+   celular. `body.tem-selo` abre espaço para ele em vez de escondê-lo. */
+body.tem-selo .bnav{padding-bottom:calc(46px + env(safe-area-inset-bottom))}
+.bnav-in{display:flex}
+.bn-it{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 3px;border-radius:11px;color:var(--on-nv3);font-size:10.5px;font-weight:600}
+.bn-it.on{color:var(--az-cl)}
+.bn-it .ic{display:flex}
+
+/* ============================================================ cartões */
+.cd{background:var(--surf);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
+.cd-p{padding:0;overflow:hidden}
+.gr{display:grid;gap:16px}
+.gr2{grid-template-columns:repeat(2,1fr)}
+.gr3{grid-template-columns:repeat(3,1fr)}
+.gr4{grid-template-columns:repeat(4,1fr)}
+.gr5{grid-template-columns:repeat(5,1fr)}
+.gr>*{min-width:0}
+
+/* indicador numérico */
+.kpi{background:var(--surf);border:1px solid var(--line);border-radius:var(--r3);padding:22px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--az)}
+.kpi.ok::after{background:var(--ok)} .kpi.and::after{background:var(--and-cl)}
+.kpi.neu::after{background:var(--neu-cl)} .kpi.err::after{background:var(--err)}
+.kpi.az::after{background:var(--az)}
+.kpi-v{font-size:33px;font-weight:780;letter-spacing:-.03em;line-height:1;color:var(--ink)}
+.kpi-v .u{font-size:17px;font-weight:660;color:var(--ink3)}
+.kpi-l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-top:10px}
+
+/* ============================================================ herói de progresso */
+.hero{
+  background:var(--nv);background-image:radial-gradient(900px 420px at 88% -14%,rgba(0,180,216,.24),transparent 62%);
+  color:var(--on-nv);border-radius:var(--r3);padding:32px;display:flex;align-items:center;gap:34px;flex-wrap:wrap;
+}
+.hero-tx{flex:1;min-width:250px}
+.hero h1{color:#fff;margin:7px 0 10px}
+.hero p{color:var(--on-nv2);font-size:15px;max-width:52ch}
+.ring{position:relative;width:158px;height:158px;flex:none}
+.ring svg{transform:rotate(-90deg);display:block}
+.ring-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-v{font-size:37px;font-weight:790;letter-spacing:-.035em;color:#fff;line-height:1}
+.ring-l{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--on-nv3);margin-top:6px}
+.hero-st{display:flex;gap:26px;margin-top:20px;flex-wrap:wrap}
+.hero-st .i{display:flex;flex-direction:column;gap:3px}
+.hero-st .iv{font-size:22px;font-weight:740;color:#fff;letter-spacing:-.02em}
+.hero-st .il{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--on-nv3)}
+
+/* ============================================================ selo de estado
+   NOMES: .pill é SEMPRE o componente. Os estados são .is-ok/.is-and/.is-neu/.is-err —
+   prefixo is- para nunca colidir com um componente de mesmo nome (já custou caro
+   quatro vezes neste ambiente). */
+.pill{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;
+  font-size:12px;font-weight:660;letter-spacing:.01em;white-space:nowrap;
+}
+.pill .pd{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.is-ok {background:var(--ok-bg); color:var(--ok)}   /* 6.3:1 */
+.is-and{background:var(--and-bg);color:var(--and)}  /* 6.0:1 */
+.is-neu{background:var(--neu-bg);color:var(--neu)}  /* 5.6:1 */
+.is-err{background:var(--err-bg);color:var(--err)}  /* 6.1:1 */
+
+/* ============================================================ cartão de módulo */
+.mod{
+  background:var(--surf);border:1px solid var(--line);border-radius:var(--r3);
+  padding:24px;display:flex;gap:20px;transition:.25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+.mod::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--neu-cl);transition:.25s}
+.mod.st-ok::before{background:var(--ok)}
+.mod.st-and::before{background:var(--and-cl)}
+.mod:hover{border-color:var(--line2);box-shadow:var(--sh);transform:translateY(-2px)}
+.mod-ic{
+  width:56px;height:56px;border-radius:17px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--az-bg);color:var(--az-tx);
+}
+.mod-bd{flex:1;min-width:0}
+.mod-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.mod-n{font-family:var(--mono);font-size:10.5px;letter-spacing:.15em;color:var(--az-tx);font-weight:600;margin-bottom:5px}
+.mod h3{margin-bottom:7px}
+.mod-d{color:var(--ink3);font-size:14.5px;line-height:1.55;margin-bottom:15px}
+.mod-mt{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:17px}
+.mt-i{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink3)}
+.mt-i b{color:var(--ink);font-weight:650}
+.mod-ft{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+/* barra de progresso */
+/* display:block nos DOIS. Se .bar-f for um <span>, ele fica inline, `height`
+   não se aplica e a barra some — acontece sempre que o componente é usado
+   dentro de um <button> com spans. 3ª ocorrência da mesma classe de defeito. */
+.bar{display:block;height:7px;border-radius:99px;background:var(--surf3);overflow:hidden;flex:1;min-width:90px}
+.bar-f{display:block;height:100%;border-radius:99px;background:var(--az);transition:width .55s cubic-bezier(.4,0,.2,1)}
+.bar-f.ok{background:var(--ok)}
+.bar-f.and{background:var(--and-cl)}
+.bar-f.err{background:var(--err)}
+.bar-f.neu{background:var(--neu-cl)}
+
+/* barra empilhada com os 4 estados */
+.pilha{display:flex;gap:2px;height:10px}
+.pilha>div{border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.leg-l{display:flex;gap:15px;flex-wrap:wrap;margin-top:9px;font-size:12px;color:var(--ink3)}
+.leg-l span{display:inline-flex;align-items:center;gap:6px}
+.leg-l i{width:9px;height:9px;border-radius:3px;flex:none}
+
+/* blocos de estado na visão geral */
+.est-gr{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.est-v{font-size:27px;font-weight:770;letter-spacing:-.025em;line-height:1}
+.est-v.ok{color:var(--ok)} .est-v.and{color:var(--and)}
+.est-v.err{color:var(--err)} .est-v.neu{color:var(--neu)}
+
+/* linha clicável nos cartões da visão geral */
+.lin{display:flex;align-items:center;gap:12px;padding:11px 0;width:100%;text-align:left;
+  border-bottom:1px solid var(--line);transition:.15s}
+.lin:last-child{border-bottom:0}
+.lin:hover{background:var(--surf2);border-radius:10px;padding-left:8px;padding-right:8px}
+.lin-n{flex:1;min-width:0;display:block}
+.lin-n b{display:block;font-weight:640;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lin-n i{display:block;font-style:normal;font-size:12px;color:var(--ink3)}
+
+/* célula de treinamento na tabela */
+.cel{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.cel-d{font-family:var(--mono);font-size:11px;color:var(--ink3);white-space:nowrap}
+.tb-tr{min-width:1040px}
+tr.cli{cursor:pointer}
+tr.cli:focus-visible{outline:3px solid var(--az);outline-offset:-3px}
+
+/* ficha do motorista */
+.ficha{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;padding-top:18px;border-top:1px solid var(--line)}
+.ficha>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ficha b{font-size:16px;font-weight:700}
+.ficha .kpi-l{margin:0}
+.bar-w{display:flex;align-items:center;gap:11px}
+.bar-n{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink2);flex:none;min-width:38px;text-align:right}
+
+/* ============================================================ player */
+.pl-wrap{background:#05080F;border-radius:var(--r3);overflow:hidden;border:1px solid var(--line)}
+.pl-box{position:relative;width:100%;aspect-ratio:16/9;background:#05080F}
+.pl-box iframe,.pl-box>div{position:absolute;inset:0;width:100%;height:100%;border:0}
+.pl-sim{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;color:var(--on-nv2);text-align:center;padding:26px;
+  background:radial-gradient(700px 330px at 50% 35%,rgba(0,180,216,.16),transparent 65%),#05080F;
+}
+.pl-sim .ttl{font-size:17px;font-weight:680;color:#fff;max-width:34ch}
+.pl-sim .nt{font-size:12.5px;color:var(--on-nv3);max-width:44ch;line-height:1.5}
+.pl-bar{padding:15px 20px;background:var(--nv);color:var(--on-nv2);display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+.pl-bar .bar{background:rgba(255,255,255,.14)}
+.pl-bar .bar-n{color:#fff}
+.pl-st{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--az-cl);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.pl-st .pd{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulsa 1.9s infinite}
+@keyframes pulsa{0%,100%{opacity:1}50%{opacity:.35}}
+.pl-st.fim{color:var(--ok-cl)}
+.pl-st.fim .pd{animation:none}
+
+/* aviso de bloqueio do quiz */
+.trava{
+  display:flex;align-items:flex-start;gap:14px;padding:17px 20px;border-radius:var(--r2);
+  background:var(--and-bg);border:1px solid #F3DCAE;color:#6B4200;font-size:14px;line-height:1.55;
+}
+.trava.lib{background:var(--ok-bg);border-color:#BCE6D5;color:#0C5136}
+.trava .ic{flex:none;margin-top:1px}
+.trava b{font-weight:700}
+
+/* controle só de demonstração — sempre rotulado como tal */
+.demo-ct{
+  display:flex;align-items:center;gap:11px;padding:11px 16px;border-radius:var(--r2);
+  background:var(--surf2);border:1px dashed var(--line2);font-size:12.5px;color:var(--ink3);flex-wrap:wrap;
+}
+.demo-ct .tg{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  background:var(--ink);color:#fff;padding:3px 9px;border-radius:999px;font-weight:600}
+
+/* ============================================================ quiz */
+.qz{display:flex;flex-direction:column;gap:16px}
+.qz-q{background:var(--surf);border:1px solid var(--line);border-radius:var(--r3);padding:22px;transition:.22s}
+.qz-q.err{border-color:#F0B8B3;background:#FFFAF9}
+.qz-q.cer{border-color:#B6E3CE;background:#FAFFFD}
+.qz-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;flex-wrap:wrap}
+.qz-n{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--az-tx);font-weight:600}
+/* display:block — <span> inline ignoraria a margem e colaria no texto da alternativa */
+.qz-sua{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);margin-top:5px;font-weight:600}
+.qz-t{font-size:16px;font-weight:660;line-height:1.45;margin-bottom:16px}
+.qz-as{display:flex;flex-direction:column;gap:9px}
+.qz-a{
+  display:flex;align-items:flex-start;gap:13px;padding:14px 16px;border-radius:var(--r2);
+  border:1.5px solid var(--line);background:var(--surf);transition:.18s;text-align:left;width:100%;
+  font-size:14.5px;line-height:1.45;color:var(--ink2);
+}
+.qz-a:hover:not(:disabled){border-color:var(--az);background:var(--az-bg)}
+.qz-a:disabled{cursor:default}
+.qz-a .mk{
+  width:24px;height:24px;border-radius:50%;flex:none;border:2px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;
+  color:var(--ink3);transition:.18s;margin-top:-1px;
+}
+.qz-a.sel{border-color:var(--az);background:var(--az-bg)}
+.qz-a.sel .mk{border-color:var(--az);background:var(--az);color:#fff}
+.qz-a.cer{border-color:var(--ok);background:var(--ok-bg)}
+.qz-a.cer .mk{border-color:var(--ok);background:var(--ok);color:#fff}
+.qz-a.err{border-color:var(--err);background:var(--err-bg)}
+.qz-a.err .mk{border-color:var(--err);background:var(--err);color:#fff}
+
+/* resultado */
+.res{border-radius:var(--r3);padding:30px;text-align:center;color:#fff}
+.res.ap{background:var(--ok);background-image:linear-gradient(140deg,#0F6B4F,#14875F)}
+.res.rp{background:var(--err);background-image:linear-gradient(140deg,#A3261E,#C23B31)}
+.res-ic{font-size:40px;line-height:1;margin-bottom:12px}
+.res h2{color:#fff;margin-bottom:9px}
+.res p{opacity:.92;font-size:15px}
+.res-n{display:flex;justify-content:center;gap:34px;margin:22px 0;flex-wrap:wrap}
+.res-n .i .v{font-size:30px;font-weight:780;letter-spacing:-.03em}
+.res-n .i .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.86;margin-top:4px}
+
+/* ============================================================ tabela do gestor */
+.tb-w{overflow-x:auto;border-radius:var(--r3);border:1px solid var(--line);background:var(--surf)}
+table.tb{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
+.tb th{
+  position:sticky;top:0;z-index:2;background:var(--surf2);text-align:left;padding:13px 16px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink3);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+.tb td{padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tb tr:last-child td{border-bottom:0}
+.tb tbody tr{transition:.15s}
+.tb tbody tr:hover{background:var(--surf2)}
+.tb .nm{display:flex;align-items:center;gap:11px}
+.tb .nm b{font-weight:650;display:block;line-height:1.3}
+.tb .nm span{font-size:12px;color:var(--ink3)}
+.mods-c{display:flex;gap:6px}
+.mc{
+  width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+}
+.mc.ok{background:var(--ok-bg);color:var(--ok)}
+.mc.and{background:var(--and-bg);color:var(--and)}
+.mc.neu{background:var(--neu-bg);color:var(--neu)}
+.mc.err{background:var(--err-bg);color:var(--err)}
+
+/* filtros */
+.fl{display:flex;gap:8px;flex-wrap:wrap}
+.fl-b{
+  padding:9px 17px;border-radius:999px;border:1.5px solid var(--line);background:var(--surf);
+  font-size:13.5px;font-weight:600;color:var(--ink3);transition:.18s;
+}
+.fl-b:hover{border-color:var(--line2);color:var(--ink)}
+.fl-b.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.fl-b .ct{opacity:.7;margin-left:6px;font-family:var(--mono);font-size:11.5px}
+
+/* vazio */
+.vazio{text-align:center;padding:52px 22px;color:var(--ink3)}
+.vazio .ic{font-size:36px;margin-bottom:12px;opacity:.5}
+
+/* ============================================================ login */
+.lg-wrap{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
+.lg-art{
+  background:var(--nv);background-image:radial-gradient(800px 500px at 26% 22%,rgba(0,180,216,.26),transparent 62%);
+  color:#fff;padding:52px;display:flex;flex-direction:column;justify-content:space-between;
+}
+.lg-art img{height:28px;width:auto}
+.lg-art h1{font-size:clamp(29px,3.5vw,44px);color:#fff;margin-bottom:18px}
+.lg-art p{color:var(--on-nv2);font-size:17px;max-width:40ch;line-height:1.6}
+.lg-mk{display:flex;flex-direction:column;gap:13px;margin-top:30px}
+.lg-mk .i{display:flex;align-items:center;gap:12px;font-size:14.5px;color:var(--on-nv2)}
+.lg-mk .i .ck{width:22px;height:22px;border-radius:50%;background:rgba(79,214,164,.17);color:var(--ok-cl);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;font-weight:700}
+.lg-fm{display:flex;align-items:center;justify-content:center;padding:52px 40px;background:var(--bg)}
+.lg-in{width:100%;max-width:420px}
+.perf{display:flex;flex-direction:column;gap:13px;margin:26px 0}
+.pf{
+  display:flex;align-items:center;gap:16px;padding:19px 21px;border-radius:var(--r3);
+  border:1.5px solid var(--line);background:var(--surf);transition:.22s;text-align:left;width:100%;
+}
+.pf:hover{border-color:var(--az);box-shadow:var(--sh);transform:translateY(-2px)}
+.pf .ic{width:48px;height:48px;border-radius:15px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--az-bg);color:var(--az-tx)}
+.pf.g .ic{background:var(--surf2);color:var(--ink)}
+/* display:block obrigatório — sem isso os dois spans ficam inline e o texto
+   sai colado ("MotoristaLuciano Alves de Goes"). Só aparece na captura de tela. */
+.pf>span:not(.ic):not(.arw){display:block;flex:1;min-width:0}
+.pf-t{display:block;font-size:16.5px;font-weight:690}
+.pf-d{display:block;font-size:13.5px;color:var(--ink3);margin-top:2px;line-height:1.45}
+.pf .arw{margin-left:auto;color:var(--ink3);flex:none}
+
+/* ============================================================ voltar */
+.volta{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink3);margin-bottom:18px;padding:7px 0}
+.volta:hover{color:var(--ink);gap:12px}
+
+/* ============================================================ aviso de rodapé */
+.nota{
+  margin-top:40px;padding:17px 20px;border-radius:var(--r2);background:var(--surf2);
+  border:1px solid var(--line);font-size:12.5px;color:var(--ink3);line-height:1.6;
+}
+.nota b{color:var(--ink2)}
+
+/* ============================================================ animação */
+.fade{animation:fade .38s cubic-bezier(.4,0,.2,1)}
+@keyframes fade{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+
+/* ============================================================ responsivo
+   @media SCREEN — não vaza para impressão */
+@media screen and (max-width:1320px){
+  .gr5{grid-template-columns:repeat(3,1fr)}
+  .ficha{grid-template-columns:repeat(3,1fr)}
+}
+@media screen and (max-width:1120px){
+  .gr4{grid-template-columns:repeat(2,1fr)}
+  :root{--lat:232px}
+  .main{padding:28px 26px 70px}
+}
+@media screen and (max-width:900px){
+  .lg-wrap{grid-template-columns:1fr}
+  .lg-art{padding:36px 26px}
+  .lg-art .lg-mk{display:none}
+  .lg-fm{padding:34px 24px 52px}
+}
+@media screen and (max-width:820px){
+  .lat{display:none}
+  .main{margin-left:0;padding:20px 17px 96px}
+  body.tem-selo .main{padding-bottom:136px}
+  .tbar{display:flex}
+  .bnav{display:block}
+  .gr3,.gr2{grid-template-columns:1fr}
+  .gr4,.gr5{grid-template-columns:repeat(2,1fr)}
+  .est-gr{grid-template-columns:repeat(2,1fr)}
+  .ficha{grid-template-columns:repeat(2,1fr)}
+  .hero{padding:24px;gap:24px;flex-direction:column;align-items:flex-start}
+  .ring{width:128px;height:128px;align-self:center}
+  .ring-v{font-size:31px}
+  .mod{flex-direction:column;gap:15px;padding:20px}
+  .mod-ic{width:46px;height:46px;border-radius:14px}
+  .res-n{gap:22px}
+  .kpi{padding:17px}
+  .kpi-v{font-size:26px}
+}
+@media screen and (max-width:420px){
+  .gr4,.gr5{grid-template-columns:1fr}
+  .ficha{grid-template-columns:1fr}
+  .bts .bt{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+
+/* ============================================================ sistema real: formulários, convite, avisos */
+.fm{display:flex;flex-direction:column;gap:16px}
+.fm-gr{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 18px}
+.fm-gr>*{min-width:0}
+/* label é inline por padrão: sem display:flex o rótulo e o campo não empilham */
+.cp{display:flex;flex-direction:column;gap:7px}
+.cp-lg{grid-column:1/-1}
+.cp-l{font-size:13px;font-weight:620;color:var(--ink2)}
+.in{
+  display:block;width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line2);
+  background:var(--surf);color:var(--ink);font:inherit;font-size:15px;transition:.15s;min-width:0;
+}
+.in:focus{outline:none;border-color:var(--az);box-shadow:0 0 0 3px rgba(0,180,216,.22)}
+textarea.in{resize:vertical;min-height:80px}
+.in-ro{background:var(--surf2);color:var(--ink2);border-style:dashed}
+.in-g{display:flex;gap:8px}
+.in-g .in{flex:1}
+.fm-err{min-height:18px;font-size:13.5px;font-weight:600;color:var(--err)}
+.fm-err:empty{min-height:0}
+
+.carreg{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--ink3);font-size:14.5px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--surf3);border-top-color:var(--az);animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+.aviso{
+  display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:100;
+  padding:12px 20px;border-radius:12px;font-size:14px;font-weight:620;box-shadow:var(--sh2);max-width:calc(100% - 32px);
+}
+.aviso.ok{background:var(--ok);color:#fff}
+.aviso.err{background:var(--err);color:#fff}
+
+.rodape-s{margin-top:40px;font-size:12px;color:var(--ink3)}
+
+.tg-a{display:inline-block;font-style:normal;font-size:11px;font-weight:650;padding:3px 9px;border-radius:999px;margin-top:4px;white-space:nowrap}
+.tg-a.pend{background:var(--and-bg);color:var(--and)}
+.tg-a.off{background:var(--err-bg);color:var(--err)}
+.tg-a.ok{background:var(--ok-bg);color:var(--ok)}
+.tg-a.ex{background:var(--az-bg);color:var(--az-tx)}   /* 4.73:1 medido */
+
+.bt-risco{color:var(--err);border-color:#EAB8B3}
+.bt-risco:hover:not(:disabled){border-color:var(--err)}
+
+.convite{padding-top:16px;border-top:1px solid var(--line)}
+.cv-link{background:var(--surf2);border-radius:10px;padding:11px 14px;overflow-x:auto}
+.cv-link code{font-family:var(--mono);font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.cv-msg{white-space:pre-wrap;word-break:break-word;background:var(--surf2);border-radius:12px;padding:14px 16px;
+  font-family:var(--sans);font-size:14px;color:var(--ink2);margin:0}
+.convite-ok{text-align:left}
+.convite-ok .res-ic{font-size:0;margin-bottom:8px}
+.senha-f{flex-direction:row;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.senha-f .cp{flex:1;min-width:200px}
+
+.tent-l{display:flex;flex-direction:column;gap:6px}
+.tent-i{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink2);
+  padding:8px 12px;border-radius:10px;background:var(--surf2)}
+.tent-i b{min-width:42px}
+
+.ficha-cad{grid-template-columns:repeat(3,1fr);border-top:0;padding-top:0}
+.vazio-g{text-align:center;padding:48px 24px}
+.vazio-g .res-ic{display:flex;justify-content:center}
+
+@media screen and (max-width:820px){
+  .fm-gr{grid-template-columns:1fr}
+  .ficha-cad{grid-template-columns:1fr 1fr}
+}
+@media screen and (max-width:900px){
+  .lg-art{gap:18px}
+  .lg-art>img{margin-bottom:4px}
+}
+
+/* ============================================================ marca Anycast
+   Ícone oficial (extraído do site) + nome em minúsculas, como no cabeçalho de
+   anycast.excom.ai. O nome é texto, não imagem: nítido em qualquer tela. */
+.marca{display:flex;align-items:center;gap:10px;color:#fff;font-weight:760;letter-spacing:-.025em;line-height:1}
+.marca img{width:28px;height:28px;border-radius:7px;flex:none;display:block}
+.marca span{display:block;font-size:20px}
+.tbar .marca img{width:24px;height:24px;border-radius:6px}
+.tbar .marca span{font-size:17px}
+.lg-art .marca img{width:34px;height:34px;border-radius:8px}
+.lg-art .marca span{font-size:24px}
+.lat .marca{margin-bottom:8px}
+/* celular: barra do topo de ponta a ponta, afastada do conteúdo */
+@media screen and (max-width:820px){
+  .tbar{margin:-20px -17px 18px}
+}

@@ -1,0 +1,122 @@
+# -*- coding: utf-8 -*-
+"""
+Academia do Motorista — conteúdo dos treinamentos (vídeos e quizzes).
+
+Aplicado no banco por `supabase/aplica.py conteudo`. O gabarito (3º campo de cada
+pergunta) vai para o esquema privado do banco e NUNCA para o navegador.
+
+Vídeos do canal "Condução EXTRAeconômica" (YouTube), com incorporação liberada.
+As perguntas foram escritas a partir do título e da descrição de cada vídeo e da
+doutrina de condução econômica — valide com o autor do conteúdo.
+"""
+
+APROVACAO = 70          # nota mínima para aprovação, em %
+LIMIAR_VIDEO = 0.95     # fração do vídeo que precisa ser assistida
+
+MODULOS = [
+    {
+        'id': 'm1',
+        'ord': 1,
+        'titulo': 'Direção Econômica',
+        'curto': 'Direção Econômica',
+        'desc': 'Treinamento sobre torque, potência e boas práticas relacionadas à direção econômica.',
+        'duracao': '11 min',
+        'video': '_degXzzpgMs',
+        'videoSeg': 649,
+        'fonte': 'Condução EXTRAeconômica',
+        'original': 'Treinamento de Motoristas + Torque x Potência = Direção Econômica',
+        'tema': 'economia',
+        'quiz': [
+            ('O que é o torque do motor?',
+             ['A força de giro que o motor entrega e que efetivamente move o veículo',
+              'A velocidade máxima que o veículo consegue atingir em pista plana',
+              'A quantidade de combustível injetada a cada giro do motor',
+              'A rotação em que o motor desliga automaticamente'], 0),
+            ('Qual é a relação entre torque e potência?',
+             ['São a mesma grandeza, medida em unidades diferentes',
+              'A potência resulta do torque combinado com a rotação do motor',
+              'A potência é sempre maior que o torque em qualquer rotação',
+              'O torque só existe quando a potência está no máximo'], 1),
+            ('A chamada "faixa verde" do conta-giros indica:',
+             ['A rotação máxima que o motor suporta sem quebrar',
+              'A faixa em que o motor deve ficar apenas em subidas',
+              'A faixa de rotação de melhor aproveitamento, onde se anda com menos consumo',
+              'A faixa em que o veículo deve ser desligado para economizar'], 2),
+            ('Para extrair economia real na condução, o motorista deve:',
+             ['Manter o motor sempre na rotação mais alta possível, para ter força de sobra',
+              'Acelerar a fundo e trocar de marcha o mais tarde possível',
+              'Trabalhar na faixa de torque, com rotação baixa e aceleração progressiva',
+              'Andar sempre na marcha mais baixa disponível'], 2),
+        ],
+    },
+    {
+        'id': 'm2',
+        'ord': 2,
+        'titulo': 'Uso do Piloto Automático',
+        'curto': 'Piloto Automático',
+        'desc': 'Treinamento sobre utilização correta do piloto automático durante a condução.',
+        'duracao': '15 min',
+        'video': '6rw4KQmFj4A',
+        'videoSeg': 917,
+        'fonte': 'Condução EXTRAeconômica',
+        'original': 'Piloto Automático, como utilizar treinamento de motoristas',
+        'tema': 'piloto',
+        'quiz': [
+            ('Em qual condição o piloto automático ajuda a economizar combustível?',
+             ['Em pista plana e livre, mantendo a velocidade constante',
+              'Em trecho de serra, para vencer as subidas com mais força',
+              'Em trânsito urbano com paradas frequentes',
+              'Em qualquer condição, pois ele sempre economiza'], 0),
+            ('Por que manter o piloto automático ligado em relevo ondulado costuma gastar mais?',
+             ['Porque ele desliga a injeção nas subidas e o motor perde força',
+              'Porque ele acelera fortemente para segurar a velocidade na subida',
+              'Porque ele obriga o motorista a reduzir a marcha antes da descida',
+              'Porque ele mantém o motor fora da faixa verde apenas nas descidas'], 1),
+            ('Em piso molhado, com neblina ou em pista escorregadia, o piloto automático deve:',
+             ['Ser mantido ligado, pois reage mais rápido que o motorista',
+              'Ser ligado somente acima de 80 km/h',
+              'Ser desligado, deixando o controle da velocidade com o motorista',
+              'Ser ajustado para uma velocidade 10 km/h maior'], 2),
+            ('Ao se aproximar de uma subida conhecida, a conduta mais econômica é:',
+             ['Aumentar a velocidade programada no piloto antes de subir',
+              'Manter o piloto ligado e deixar que ele resolva a subida',
+              'Assumir o comando, aproveitar o embalo e deixar a velocidade cair um pouco',
+              'Desligar o motor por alguns instantes no início da subida'], 2),
+        ],
+    },
+    {
+        'id': 'm3',
+        'ord': 3,
+        'titulo': 'Freio Motor e Frenagem Planejada',
+        'curto': 'Frenagem Planejada',
+        'desc': 'Treinamento sobre utilização do freio motor e técnicas de frenagem planejada.',
+        'duracao': '10 min',
+        'video': 'rnWuTFdfTPg',
+        'videoSeg': 611,
+        'fonte': 'Condução EXTRAeconômica',
+        'original': 'Treinamentos de Motoristas — Freio Motor e Frenagem Planejada',
+        'tema': 'freio',
+        'quiz': [
+            ('O que acontece com o consumo quando o motorista tira o pé do acelerador com a marcha engatada?',
+             ['O consumo aumenta, porque o motor passa a girar por inércia',
+              'A injeção de combustível é cortada e o consumo cai praticamente a zero',
+              'O consumo permanece igual ao de quando se está acelerando',
+              'O motor passa a consumir o dobro para manter a rotação'], 1),
+            ('Por que usar muito o freio de serviço encarece a viagem?',
+             ['Porque ele desperdiça em calor a energia que o combustível já produziu',
+              'Porque ele injeta combustível extra para acionar o sistema',
+              'Porque ele exige que o motor trabalhe em rotação mais alta',
+              'Porque ele desliga o freio motor de forma permanente'], 0),
+            ('O que caracteriza uma frenagem planejada?',
+             ['Frear forte e cedo, para parar bem antes do ponto previsto',
+              'Deixar para frear no último instante, aproveitando toda a velocidade',
+              'Antecipar o obstáculo, tirar o pé cedo e chegar ao ponto quase sem frear',
+              'Alternar acelerador e freio em intervalos curtos e regulares'], 2),
+            ('Numa descida longa, o procedimento correto é:',
+             ['Descer em ponto morto para aproveitar a inércia',
+              'Usar somente o freio de serviço, aplicado de forma contínua',
+              'Engatar marcha adequada e usar o freio motor, poupando o freio de serviço',
+              'Manter o piloto automático ligado durante toda a descida'], 2),
+        ],
+    },
+]

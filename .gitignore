@@ -1,0 +1,16 @@
+# ---- segredos: NUNCA versionar ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ---- gerados ----
+dist/
+shots/
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
