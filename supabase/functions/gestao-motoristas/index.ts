@@ -1,5 +1,5 @@
 // ============================================================================
-// Academia do Motorista — função de servidor `gestao-motoristas`
+// Academia do Motorista Autonomoz — função de servidor `gestao-motoristas`
 //
 // Única peça do sistema que usa a chave secreta. Só atende SUPERVISORES:
 // o papel é conferido na tabela `perfis` a cada chamada (nunca em metadados

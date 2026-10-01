@@ -8,8 +8,8 @@
       real decorrido entre dois registros. É o número do servidor que libera o
       quiz — mexer no navegador não adianta.
 
-   Sem vídeo, sem aula: se o YouTube não carregar, a tela mostra o erro e
-   oferece tentar de novo. Não existe modo simulado nem botão de adiantar.
+   Duas fontes: YouTube (IFrame API) ou arquivo próprio (<video>, link assinado).
+   Sem vídeo, sem aula: se não carregar, a tela mostra o erro e oferece tentar de novo.
    ============================================================ */
 var Player = {
   yt:null, tid:null, mod:null, ultT:0, dur:0,
@@ -47,10 +47,42 @@ var Player = {
     this.aoMudar = aoMudar || function(){};
     var self = this;
     this.pinta();
+    if(mod.videoTipo === 'arquivo'){ this.montaArquivo(); return }
     this.carregaAPI(function(ok){
       if(!$('#pl-alvo')) return;
       if(ok) self.montaYT(); else self.semVideo();
     });
+  },
+
+  /* Vídeo enviado pelo supervisor (bucket privado). O link é assinado pelo
+     servidor só para quem tem a aula atribuída e vale 2 h. O controle do tempo
+     é o mesmo do YouTube: só conta o avanço contínuo da reprodução. */
+  montaArquivo: function(){
+    var self = this, mod = this.mod;
+    Api.garante().then(function(){
+      return Api._req('POST', '/storage/v1/object/sign/aulas/' + mod.arquivo, {expiresIn: 7200});
+    }).then(function(r){
+      var alvo = $('#pl-alvo');
+      if(!alvo || !self.mod || self.mod.id !== mod.id) return;
+      var v = document.createElement('video');
+      v.id = 'pl-alvo'; v.controls = true; v.playsInline = true; v.preload = 'metadata';
+      v.setAttribute('controlsList', 'nodownload noplaybackrate');
+      v.disablePictureInPicture = true;
+      v.oncontextmenu = function(){ return false };
+      v.src = SUPA_URL + '/storage/v1' + r.signedURL;
+      alvo.replaceWith(v);
+      self.vid = v;
+      v.addEventListener('loadedmetadata', function(){
+        if(self.servidor > 2 && self.servidor < self.dur - 3) v.currentTime = self.servidor;
+        self.ultT = self.servidor; self.pronto = true; self.relogio(); self.pinta();
+      });
+      v.addEventListener('play',  function(){ self.tocando = true;  self.ultT = v.currentTime; self.pinta() });
+      v.addEventListener('pause', function(){ self.tocando = false; self.envia(); self.pinta() });
+      v.addEventListener('ended', function(){ self.tocando = false; self.envia(); self.pinta() });
+      /* velocidade acima de 2x não é aceita pelo servidor; aqui só evita a frustração */
+      v.addEventListener('ratechange', function(){ if(v.playbackRate > 2) v.playbackRate = 2 });
+      v.addEventListener('error', function(){ self.semVideo() });
+    }).catch(function(){ self.semVideo() });
   },
 
   montaYT: function(){
@@ -106,8 +138,11 @@ var Player = {
   },
 
   tique: function(){
-    if(!this.pronto || !this.yt || !this.yt.getCurrentTime) return;
-    var t = this.yt.getCurrentTime();
+    if(!this.pronto) return;
+    var t;
+    if(this.vid) t = this.vid.currentTime;
+    else if(this.yt && this.yt.getCurrentTime) t = this.yt.getCurrentTime();
+    else return;
     if(this.tocando){
       var d = t - this.ultT;
       if(d > 0 && d <= this.UM_PULO) this.pend += d;
@@ -146,7 +181,7 @@ var Player = {
                        videoConcluido: true, aulaAdiantada: true, ultima: dataBR(new Date().toISOString())});
       if(!self.mod || self.mod.id !== mod) return;
       self.servidor = +r.segundos; self.liberado = true;
-      try{ if(self.yt && self.yt.pauseVideo) self.yt.pauseVideo() }catch(e){}
+      try{ if(self.yt && self.yt.pauseVideo) self.yt.pauseVideo(); if(self.vid) self.vid.pause() }catch(e){}
       self.pinta();
     });
   },
@@ -173,7 +208,8 @@ var Player = {
     if(this.pend >= 0.2) this.envia();
     clearInterval(this.tid); this.tid = null;
     if(this.yt && this.yt.destroy){ try{ this.yt.destroy() }catch(e){} }
-    this.yt = null; this.mod = null; this.pronto = false; this.tocando = false;
+    if(this.vid){ try{ this.vid.pause(); this.vid.removeAttribute('src'); this.vid.load() }catch(e){} }
+    this.vid = null; this.yt = null; this.mod = null; this.pronto = false; this.tocando = false;
     this.aoMudar = function(){};
   }
 };

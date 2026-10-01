@@ -1,5 +1,5 @@
 -- ============================================================================
--- Academia do Motorista — esquema no Supabase
+-- Academia do Motorista Autonomoz — esquema no Supabase
 --
 -- PRINCÍPIO: o navegador só LÊ. Toda escrita passa por uma função do banco
 -- (security definer) ou pela função de servidor `gestao-motoristas`, que usa a
@@ -93,7 +93,7 @@ create table if not exists public.perguntas (
 -- Assim o navegador recebe as perguntas sem receber as respostas.
 create table if not exists privado.gabarito (
   pergunta_id bigint primary key references public.perguntas(id) on delete cascade,
-  correta     int not null check (correta between 0 and 3)
+  correta     int not null check (correta between 0 and 4)
 );
 
 -- ---------------------------------------------------------------- progresso
@@ -210,6 +210,193 @@ as $$
   on conflict (usuario_id) do update set valida_ate = excluded.valida_ate;
 $$;
 
+-- gabarito aceita até 5 alternativas (a tabela antiga limitava a 4)
+alter table privado.gabarito drop constraint if exists gabarito_correta_check;
+alter table privado.gabarito add constraint gabarito_correta_check check (correta between 0 and 4);
+
+-- ============================================================================ AULAS criadas pelo supervisor
+-- Uma aula pode ter vídeo do YouTube ou arquivo próprio (bucket privado `aulas`)
+-- e ser aberta a TODOS os motoristas ou só aos selecionados.
+alter table public.modulos alter column video_id drop not null;
+alter table public.modulos add column if not exists video_tipo text not null default 'youtube';
+alter table public.modulos add column if not exists video_arquivo text;
+alter table public.modulos add column if not exists publico text not null default 'todos';
+alter table public.modulos add column if not exists criado_por uuid references public.perfis(id) on delete set null;
+alter table public.modulos add column if not exists criado_em timestamptz not null default now();
+do $$ begin
+  alter table public.modulos add constraint modulos_video_tipo check (video_tipo in ('youtube','arquivo'));
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.modulos add constraint modulos_publico check (publico in ('todos','selecionados'));
+exception when duplicate_object then null; end $$;
+
+create table if not exists public.modulo_motoristas (
+  modulo_id    text not null references public.modulos(id) on delete cascade,
+  motorista_id uuid not null references public.motoristas(id) on delete cascade,
+  primary key (modulo_id, motorista_id)
+);
+alter table public.modulo_motoristas enable row level security;
+
+-- Quem enxerga uma aula:
+--   supervisor comum → todas · supervisor de exemplo → as da base, as abertas a
+--   todos e as que ele criou · motorista ativo → abertas a todos ou atribuídas a ele
+create or replace function public.pode_ver_modulo(p_mod text)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select case
+    when exists (select 1 from public.perfis where id = auth.uid() and papel = 'supervisor' and not exemplo) then true
+    when exists (select 1 from public.perfis where id = auth.uid() and papel = 'supervisor' and exemplo) then
+      exists (select 1 from public.modulos m where m.id = p_mod
+              and (m.criado_por is null or m.publico = 'todos' or m.criado_por = auth.uid()))
+    else exists (select 1 from public.modulos m join public.motoristas d on d.id = auth.uid() and d.ativo
+                 where m.id = p_mod and (m.publico = 'todos'
+                   or exists (select 1 from public.modulo_motoristas x where x.modulo_id = m.id and x.motorista_id = d.id)))
+  end;
+$$;
+
+drop policy if exists le_atribuicao on public.modulo_motoristas;
+create policy le_atribuicao on public.modulo_motoristas for select to authenticated
+  using (motorista_id = auth.uid() or public.pode_ver_motorista(motorista_id));
+
+-- Salvar (criar ou editar) uma aula. Só supervisor. Validação completa aqui:
+-- o navegador não é confiável.
+create or replace function public.salvar_aula(p jsonb)
+returns text language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_eu uuid := auth.uid(); v_ex boolean; v_id text := nullif(p->>'id','');
+  v_tipo text := coalesce(p->>'video_tipo','youtube'); v_pub text := coalesce(p->>'publico','todos');
+  v_seg int := (p->>'video_seg')::int; v_q jsonb; v_i int := 0; v_alts jsonb; v_cor int;
+  v_tent int := 0; v_ant public.modulos; v_ordem int; v_mot uuid; v_nmot int := 0;
+begin
+  select exemplo into v_ex from public.perfis where id = v_eu and papel = 'supervisor';
+  if v_ex is null then raise exception 'SOMENTE_SUPERVISOR' using errcode = '42501'; end if;
+
+  if length(trim(coalesce(p->>'titulo',''))) < 3 then raise exception 'AULA_TITULO'; end if;
+  if v_tipo not in ('youtube','arquivo') then raise exception 'AULA_VIDEO'; end if;
+  if v_tipo = 'youtube' and coalesce(p->>'video_id','') !~ '^[A-Za-z0-9_-]{11}$' then raise exception 'AULA_VIDEO'; end if;
+  if v_tipo = 'arquivo' and coalesce(p->>'video_arquivo','') !~ '^[a-f0-9-]{36}\.[a-z0-9]{2,5}$' then raise exception 'AULA_VIDEO'; end if;
+  if v_seg is null or v_seg < 5 or v_seg > 6*3600 then raise exception 'AULA_DURACAO'; end if;
+  if jsonb_typeof(p->'perguntas') <> 'array' or jsonb_array_length(p->'perguntas') not between 1 and 15 then
+    raise exception 'AULA_PERGUNTAS'; end if;
+  for v_q in select * from jsonb_array_elements(p->'perguntas') loop
+    v_alts := v_q->'alternativas'; v_cor := (v_q->>'correta')::int;
+    if length(trim(coalesce(v_q->>'enunciado',''))) < 5 or jsonb_typeof(v_alts) <> 'array'
+       or jsonb_array_length(v_alts) not between 2 and 5 or v_cor is null
+       or v_cor < 0 or v_cor >= jsonb_array_length(v_alts)
+       or exists (select 1 from jsonb_array_elements_text(v_alts) a where length(trim(a)) = 0) then
+      raise exception 'AULA_PERGUNTA_INVALIDA';
+    end if;
+  end loop;
+  -- supervisor de exemplo nunca abre aula para todos (alcançaria motoristas reais)
+  if v_ex then v_pub := 'selecionados'; end if;
+
+  if v_id is not null then
+    select * into v_ant from public.modulos where id = v_id for update;
+    if v_ant is null then raise exception 'AULA_INEXISTENTE'; end if;
+    if v_ex and v_ant.criado_por is distinct from v_eu then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+    select count(*) into v_tent from public.tentativas where modulo_id = v_id;
+    -- com tentativas registradas, vídeo e perguntas ficam travados: mudar o
+    -- gabarito reescreveria o significado das notas já dadas
+    if v_tent > 0 and (v_ant.video_tipo is distinct from v_tipo
+        or coalesce(v_ant.video_id,'') <> coalesce(p->>'video_id','')
+        or coalesce(v_ant.video_arquivo,'') <> coalesce(p->>'video_arquivo','')
+        or (p->>'perguntas_alteradas')::boolean is true) then
+      raise exception 'AULA_COM_TENTATIVAS';
+    end if;
+    update public.modulos set titulo = trim(p->>'titulo'), curto = left(trim(p->>'titulo'), 40),
+      descricao = coalesce(trim(p->>'descricao'),''), video_tipo = v_tipo,
+      video_id = case when v_tipo='youtube' then p->>'video_id' end,
+      video_arquivo = case when v_tipo='arquivo' then p->>'video_arquivo' end,
+      video_seg = v_seg, duracao_txt = greatest(1, round(v_seg/60.0))::int || ' min', publico = v_pub
+    where id = v_id;
+  else
+    v_id := 'a' || substr(md5(random()::text || clock_timestamp()::text), 1, 9);
+    select coalesce(max(ordem),0) + 1 into v_ordem from public.modulos;
+    insert into public.modulos (id, ordem, titulo, curto, descricao, duracao_txt, video_id, video_seg,
+                                fonte, tema, video_tipo, video_arquivo, publico, criado_por)
+    values (v_id, v_ordem, trim(p->>'titulo'), left(trim(p->>'titulo'), 40), coalesce(trim(p->>'descricao'),''),
+            greatest(1, round(v_seg/60.0))::int || ' min',
+            case when v_tipo='youtube' then p->>'video_id' end, v_seg,
+            case when v_tipo='youtube' then 'YouTube' else 'Vídeo próprio' end, null,
+            v_tipo, case when v_tipo='arquivo' then p->>'video_arquivo' end, v_pub, v_eu);
+  end if;
+
+  if v_tent = 0 then
+    delete from public.perguntas where modulo_id = v_id;
+    for v_q in select * from jsonb_array_elements(p->'perguntas') loop
+      v_i := v_i + 1;
+      with q as (insert into public.perguntas (modulo_id, ordem, enunciado, alternativas)
+                 values (v_id, v_i, trim(v_q->>'enunciado'),
+                         (select jsonb_agg(trim(a)) from jsonb_array_elements_text(v_q->'alternativas') a))
+                 returning id)
+      insert into privado.gabarito select id, (v_q->>'correta')::int from q;
+    end loop;
+  end if;
+
+  delete from public.modulo_motoristas where modulo_id = v_id;
+  if v_pub = 'selecionados' then
+    for v_mot in select (jsonb_array_elements_text(coalesce(p->'motoristas','[]')))::uuid loop
+      if public.pode_ver_motorista(v_mot) and exists (select 1 from public.motoristas where id = v_mot) then
+        insert into public.modulo_motoristas values (v_id, v_mot) on conflict do nothing;
+        v_nmot := v_nmot + 1;
+      end if;
+    end loop;
+    if v_nmot = 0 then raise exception 'AULA_SEM_MOTORISTAS'; end if;
+  end if;
+  return v_id;
+end $$;
+
+-- Perguntas COM gabarito, para a tela de edição. Só supervisor (exemplo: só as dele).
+create or replace function public.aula_para_editar(p_id text)
+returns jsonb language plpgsql stable security definer set search_path = ''
+as $$
+declare v_ex boolean; v_m public.modulos;
+begin
+  select exemplo into v_ex from public.perfis where id = auth.uid() and papel = 'supervisor';
+  if v_ex is null then raise exception 'SOMENTE_SUPERVISOR' using errcode = '42501'; end if;
+  select * into v_m from public.modulos where id = p_id;
+  if v_m is null then raise exception 'AULA_INEXISTENTE'; end if;
+  if v_ex and v_m.criado_por is distinct from auth.uid() then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+  return jsonb_build_object(
+    'tentativas', (select count(*) from public.tentativas where modulo_id = p_id),
+    'motoristas', coalesce((select jsonb_agg(motorista_id) from public.modulo_motoristas where modulo_id = p_id), '[]'),
+    'perguntas', coalesce((select jsonb_agg(jsonb_build_object('enunciado', q.enunciado, 'alternativas', q.alternativas,
+                   'correta', g.correta) order by q.ordem)
+                 from public.perguntas q join privado.gabarito g on g.pergunta_id = q.id where q.modulo_id = p_id), '[]'));
+end $$;
+
+-- Arquivar / reativar uma aula (some para todos, o histórico fica)
+create or replace function public.arquivar_aula(p_id text, p_ativo boolean)
+returns void language plpgsql security definer set search_path = ''
+as $$
+declare v_ex boolean; v_dono uuid;
+begin
+  select exemplo into v_ex from public.perfis where id = auth.uid() and papel = 'supervisor';
+  if v_ex is null then raise exception 'SOMENTE_SUPERVISOR' using errcode = '42501'; end if;
+  select criado_por into v_dono from public.modulos where id = p_id;
+  if not found then raise exception 'AULA_INEXISTENTE'; end if;
+  if v_ex and v_dono is distinct from auth.uid() then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+  update public.modulos set ativo = p_ativo where id = p_id;
+end $$;
+
+-- ---------------------------------------------------------------- arquivos de vídeo
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('aulas', 'aulas', false, 52428800, array['video/mp4','video/webm','video/quicktime','video/ogg'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists aulas_envia on storage.objects;
+create policy aulas_envia on storage.objects for insert to authenticated
+  with check (bucket_id = 'aulas' and public.eh_supervisor());
+drop policy if exists aulas_le on storage.objects;
+create policy aulas_le on storage.objects for select to authenticated
+  using (bucket_id = 'aulas' and (public.eh_supervisor() or exists (
+    select 1 from public.modulos m where m.video_arquivo = name and m.ativo and public.pode_ver_modulo(m.id))));
+drop policy if exists aulas_apaga on storage.objects;
+create policy aulas_apaga on storage.objects for delete to authenticated
+  using (bucket_id = 'aulas' and public.eh_supervisor() and owner_id = auth.uid()::text);
+
 -- ============================================================================ RPC: convite
 -- Chamada SEM login, pela página do convite. Devolve só nome e usuário.
 create or replace function public.convite_info(p_token uuid)
@@ -245,7 +432,7 @@ declare
   v_dur numeric; v_lim numeric := public.cfg('limiar_video');
   v_p public.progresso; v_gap numeric; v_cred numeric;
 begin
-  select video_seg into v_dur from public.modulos where id = p_modulo and ativo;
+  select video_seg into v_dur from public.modulos where id = p_modulo and ativo and public.pode_ver_modulo(p_modulo);
   if v_dur is null then raise exception 'MODULO_INEXISTENTE'; end if;
 
   insert into public.progresso (motorista_id, modulo_id) values (v_mot, p_modulo)
@@ -289,7 +476,7 @@ begin
   if coalesce(public.cfg('modo_demo'), 0) <> 1 then
     raise exception 'ADIANTAR_DESATIVADO' using errcode = '42501';
   end if;
-  select video_seg into v_dur from public.modulos where id = p_modulo and ativo;
+  select video_seg into v_dur from public.modulos where id = p_modulo and ativo and public.pode_ver_modulo(p_modulo);
   if v_dur is null then raise exception 'MODULO_INEXISTENTE'; end if;
   insert into public.progresso (motorista_id, modulo_id) values (v_mot, p_modulo) on conflict do nothing;
   update public.progresso set
@@ -318,7 +505,7 @@ declare
   v_p public.progresso; v_gab int[]; v_n int; v_ac int := 0; v_certas boolean[] := '{}';
   v_nota int; v_ok boolean; i int;
 begin
-  select video_seg into v_dur from public.modulos where id = p_modulo and ativo;
+  select video_seg into v_dur from public.modulos where id = p_modulo and ativo and public.pode_ver_modulo(p_modulo);
   if v_dur is null then raise exception 'MODULO_INEXISTENTE'; end if;
 
   select * into v_p from public.progresso
@@ -334,7 +521,9 @@ begin
   v_n := coalesce(array_length(v_gab, 1), 0);
   if v_n = 0 then raise exception 'QUIZ_SEM_PERGUNTAS'; end if;
   if coalesce(array_length(p_respostas, 1), 0) <> v_n
-     or exists (select 1 from unnest(p_respostas) r where r is null or r < 0 or r > 3) then
+     or exists (select 1 from unnest(p_respostas) with ordinality r(v, i)
+                join public.perguntas q on q.modulo_id = p_modulo and q.ordem = r.i
+                where r.v is null or r.v < 0 or r.v >= jsonb_array_length(q.alternativas)) then
     raise exception 'RESPOSTAS_INVALIDAS';
   end if;
 
@@ -387,10 +576,10 @@ create policy le_motorista on public.motoristas for select to authenticated
   using (id = auth.uid() or public.pode_ver_motorista(id));
 
 drop policy if exists le_modulos on public.modulos;
-create policy le_modulos on public.modulos for select to authenticated using (true);
+create policy le_modulos on public.modulos for select to authenticated using (public.pode_ver_modulo(id));
 
 drop policy if exists le_perguntas on public.perguntas;
-create policy le_perguntas on public.perguntas for select to authenticated using (true);
+create policy le_perguntas on public.perguntas for select to authenticated using (public.pode_ver_modulo(modulo_id));
 
 drop policy if exists le_progresso on public.progresso;
 create policy le_progresso on public.progresso for select to authenticated
@@ -413,6 +602,10 @@ grant execute on function public.registrar_acesso()                to authentica
 grant execute on function public.registrar_video(text, numeric)    to authenticated;
 grant execute on function public.enviar_quiz(text, int[])          to authenticated;
 grant execute on function public.adiantar_aula(text)               to authenticated;
+grant execute on function public.pode_ver_modulo(text)             to authenticated;
+grant execute on function public.salvar_aula(jsonb)                to authenticated;
+grant execute on function public.aula_para_editar(text)            to authenticated;
+grant execute on function public.arquivar_aula(text, boolean)      to authenticated;
 grant execute on function public.eh_supervisor()                   to authenticated;
 grant execute on function public.pode_ver_motorista(uuid)          to authenticated;
 revoke execute on function public._motorista_ativo() from authenticated;

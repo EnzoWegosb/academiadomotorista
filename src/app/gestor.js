@@ -16,12 +16,13 @@ var FILTROS = [
    Tudo é recalculado do Store a cada desenho — inclusive o que o motorista
    acabou de fazer na outra área. Nenhum número fica fixo na interface. */
 function apura(){
-  var mods = Store.d.modulos, mot = Store.d.motoristas;
-  var totalTreinos = mot.length * mods.length;
+  /* conta só as aulas que valem para cada motorista (abertas a todos ou atribuídas) */
+  var mot = Store.d.motoristas;
+  var totalTreinos = mot.reduce(function(s, d){ return s + Store.modsDe(d.id).length }, 0);
   var conc = 0, and = 0, repr = 0, naoIni = 0, somaNotas = 0, nNotas = 0;
 
   mot.forEach(function(d){
-    mods.forEach(function(m){
+    Store.modsDe(d.id).forEach(function(m){
       var p = Store.prog(d.id, m.id);
       if(!p) return;
       if(p.status === 'concluido')      conc++;
@@ -74,6 +75,8 @@ function barraFiltros(a){
 
 /* célula de um treinamento na tabela */
 function celTreino(d, m){
+  if(!Store.atribuida(d.id, m))
+    return '<td><div class="cel"><span class="cel-d">não atribuída</span></div></td>';
   var p = Store.prog(d.id, m.id) || {status:'nao_iniciado', assistido:0};
   var fv = Math.min(Math.round((p.assistido||0)/m.videoSeg*100), 100);
   var det;
@@ -107,11 +110,12 @@ function telaGestor(){
 
   var porMod = Store.d.modulos.map(function(m){
     var c = {concluido:0, andamento:0, reprovado:0, nao_iniciado:0};
-    Store.d.motoristas.forEach(function(d){
+    var alvo = Store.d.motoristas.filter(function(d){ return Store.atribuida(d.id, m) });
+    alvo.forEach(function(d){
       var p = Store.prog(d.id, m.id);
       if(p) c[p.status]++;
     });
-    var n = Store.d.motoristas.length;
+    var n = alvo.length;
     return '<div style="margin-bottom:22px">'
       + '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:9px">'
       +   '<div style="font-size:14.5px;font-weight:640">'+esc(m.titulo)+'</div>'
@@ -151,7 +155,8 @@ function telaGestor(){
   + '<div class="topo"><div><div class="lbl">Gestão de Treinamentos</div>'
   +   '<h1 class="h1" style="margin-top:8px">Visão geral da Academia</h1>'
   +   '<p class="sub" style="margin-top:7px">'+Store.d.modulos.length
-  +     ' treinamentos obrigatórios · '+a.motoristas+' motoristas parceiros</p></div>'
+  +     ' aula'+(Store.d.modulos.length===1?'':'s')+' ativa'+(Store.d.modulos.length===1?'':'s')
+  +     ' · '+a.motoristas+' motoristas parceiros</p></div>'
   + '<div class="bts"><button class="bt bt-ln bt-sm" data-ir="#/gestor/treinamentos">'
   +   ic('grade',16)+' Abrir a tabela</button>'
   + '<button class="bt bt-pr bt-sm" data-ir="#/gestor/novo">'+ic('seta',16)+' Convidar motorista</button></div></div>'
@@ -174,7 +179,7 @@ function telaGestor(){
   +   '(inclui quem foi reprovado e pode refazer). “Com pendências” é o total menos quem '
   +   'concluiu todos — por isso engloba também quem nem começou. '
   +   'A taxa de conclusão é sobre <b>treinamentos</b>: '+a.tConcluidos+' de '+a.totalTreinos
-  +   ' (motoristas × '+Store.d.modulos.length+').</div>'
+  +   ' (cada motorista conta as aulas atribuídas a ele).</div>'
 
   + '<div class="gr gr2" style="margin-bottom:18px">'
   +   '<section class="cd"><div class="lbl" style="margin-bottom:18px">Avanço por treinamento</div>'
@@ -275,7 +280,7 @@ function msgConvite(d, senha){
        + 'Acesse: ' + linkConvite(d.convite_token) + '\n'
        + 'Usuário: ' + d.usuario + '\n'
        + (senha ? 'Senha: ' + senha + '\n' : 'Senha: a que eu te passei\n')
-       + '\nSão 3 treinamentos em vídeo, cada um com um quiz. Bom treinamento!';
+       + '\nOs treinamentos são aulas em vídeo, cada uma com um quiz. Bom treinamento!';
 }
 
 function tagAcesso(d){
@@ -296,7 +301,7 @@ function telaGestorDetalhe(id){
   var r = Store.resumo(id), e = Store.estado(id);
   var md = Store.media(id), apv = Store.aproveitamento(id), ult = Store.ultima(id);
 
-  var fichas = Store.d.modulos.map(function(m){
+  var fichas = Store.modsDe(id).map(function(m){
     var p = Store.prog(id, m.id);
     var fv = Math.min(Math.round((p.assistido||0)/m.videoSeg*100), 100);
     var cor = p.status === 'concluido' ? 'ok' : (p.status === 'reprovado' ? 'err'

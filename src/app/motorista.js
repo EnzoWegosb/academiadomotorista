@@ -58,7 +58,7 @@ function telaMotorista(){
 
     return ''
     + '<article class="mod st-'+ABR[p.status]+'">'
-    +   '<div class="mod-ic">'+ic(IC_TEMA[m.tema],26)+'</div>'
+    +   '<div class="mod-ic">'+ic(IC_TEMA[m.tema] || 'play',26)+'</div>'
     +   '<div class="mod-bd">'
     +     '<div class="mod-hd"><div style="min-width:0">'
     +       '<div class="mod-n">MÓDULO '+String(m.ord).padStart(2,'0')+'</div>'
@@ -85,7 +85,7 @@ function telaMotorista(){
   +   '<div class="hero-tx">'
   +     '<div class="lbl lbl-nv">Sua trilha de integração</div>'
   +     '<h1 class="h2">Treinamento de Boas Práticas</h1>'
-  +     '<p>Três módulos obrigatórios para começar a rodar. '
+  +     '<p>'+(Store.d.modulos.length===1 ? 'Uma aula obrigatória' : Store.d.modulos.length+' aulas obrigatórias')+' para começar a rodar. '
   +       'Cada um tem uma aula em vídeo e um quiz de '+Store.d.aprovacao+'% para aprovação.</p>'
   +     '<div class="hero-st">'
   +       '<div class="i"><span class="iv">'+r.ok+'</span><span class="il">Módulos concluídos</span></div>'
@@ -405,6 +405,7 @@ function aoDesenhar(rota){
     return;
   }
   Player.destroi();
+  if(rota.indexOf('#/gestor/aula/') === 0){ montaAulaForm(rota.split('/')[3]); return }
   if(Sessao.perfil === 'gestor' && Store.velho()){ Atualiza.agora(); return }
   if(rota.indexOf('#/gestor/motorista/') === 0 && typeof montaTentativas === 'function')
     montaTentativas(rota.split('/')[3]);

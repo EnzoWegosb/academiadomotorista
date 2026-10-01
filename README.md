@@ -21,6 +21,16 @@ real. Feito com [Anycast](https://anycast.excom.ai).
 4. O supervisor vê progresso do vídeo, status, notas, tentativas, aproveitamento
    (nota na 1ª tentativa), primeiro acesso e última atividade.
 
+## Aulas criadas pelo supervisor
+
+Em **Aulas → Nova aula** o supervisor escolhe o vídeo (link do YouTube ou arquivo
+MP4/WebM/MOV de até 50 MB, guardado no bucket privado `aulas`), dá título, define
+quem recebe (todos ou motoristas escolhidos) e cadastra as perguntas (2 a 5
+alternativas cada). O botão **Gerar com IA** escreve um rascunho de quiz a partir
+da transcrição/resumo colado, da legenda ou da descrição do YouTube — exige o
+segredo `ANTHROPIC_API_KEY` na Edge Function `gerar-perguntas`. Aula com
+tentativas registradas não muda vídeo nem perguntas.
+
 ## Regras garantidas pelo banco (não pela tela)
 
 | Regra | Onde |

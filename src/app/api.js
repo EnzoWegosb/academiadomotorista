@@ -106,6 +106,14 @@ function erroLegivel(e){
   if(/JA_APROVADO/.test(m))        return 'Você já foi aprovado neste treinamento.';
   if(/RESPOSTAS_INVALIDAS/.test(m))return 'Responda todas as perguntas antes de enviar.';
   if(/ADIANTAR_DESATIVADO/.test(m))return 'O botão de adiantar foi desligado pela supervisão.';
+  if(/AULA_COM_TENTATIVAS/.test(m)) return 'Esta aula já tem tentativas de quiz: vídeo e perguntas não podem mais mudar. Crie uma aula nova.';
+  if(/AULA_SEM_MOTORISTAS/.test(m)) return 'Escolha ao menos um motorista para receber a aula.';
+  if(/AULA_PERGUNTA_INVALIDA/.test(m)) return 'Há pergunta incompleta: enunciado, 2 a 5 alternativas preenchidas e a correta marcada.';
+  if(/AULA_PERGUNTAS/.test(m))     return 'A aula precisa de 1 a 15 perguntas.';
+  if(/AULA_VIDEO/.test(m))         return 'Vídeo inválido: confira o link do YouTube ou envie o arquivo de novo.';
+  if(/AULA_DURACAO/.test(m))       return 'Informe a duração do vídeo.';
+  if(/AULA_TITULO/.test(m))        return 'Dê um título à aula (mínimo de 3 letras).';
+  if(/AULA_SEM_PERMISSAO/.test(m)) return 'Você não tem permissão para alterar esta aula.';
   if(/MOTORISTA_INATIVO/.test(m))  return 'Seu acesso foi desativado. Fale com o seu supervisor.';
   if(/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
   return m;

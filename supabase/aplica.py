@@ -59,6 +59,17 @@ def auth_admin(metodo, caminho, corpo=None):
         return e.code, json.loads(e.read() or b'{}')
 
 
+def apaga_arquivo(nome):
+    """remove um vídeo do bucket `aulas` pela API do Storage (o SQL direto é proibido)"""
+    sk = segredo('SUPABASE_SECRET_KEY')
+    r = urllib.request.Request(URL + '/storage/v1/object/aulas', method='DELETE',
+                               data=json.dumps({'prefixes': [nome]}).encode(),
+                               headers={'apikey': sk, 'Authorization': 'Bearer ' + sk, 'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(r, timeout=30) as x: return x.status
+    except urllib.error.HTTPError as e: return e.code
+
+
 def lit(v):
     """literal SQL seguro para texto"""
     return "'" + str(v).replace("'", "''") + "'"
@@ -109,8 +120,12 @@ def auth():
 
 
 def funcao():
-    """Deploy da função `gestao-motoristas` pela API de gestão (multipart)."""
-    slug = 'gestao-motoristas'
+    """Deploy das funções de servidor pela API de gestão (multipart)."""
+    for slug in ('gestao-motoristas', 'gerar-perguntas'):
+        _deploy(slug)
+
+
+def _deploy(slug):
     codigo = open(os.path.join(AQUI, 'functions', slug, 'index.ts'), 'rb').read()
     meta = json.dumps({'entrypoint_path': 'index.ts', 'name': slug, 'verify_jwt': False}).encode()
     b = '----anycast' + uuid.uuid4().hex

@@ -87,26 +87,34 @@ function iniciais(nome){
    o motorista recebe só os próprios registros; o supervisor recebe todos.
    Nenhuma escrita é feita por aqui — só por RPC e pela função de servidor. */
 var Store = {
-  d: {modulos:[], motoristas:[], progresso:{}, aprovacao:70, limiarVideo:0.95},
+  d: {modulos:[], aulas:[], atrib:{}, motoristas:[], progresso:{}, aprovacao:70, limiarVideo:0.95},
   pronto: false,
 
   carrega: function(){
     var self = this;
     return Promise.all([
-      Api.sel('modulos',    'select=*&ativo=eq.true&order=ordem'),
+      Api.sel('modulos',    'select=*&order=ordem'),
       Api.sel('perguntas',  'select=id,modulo_id,ordem,enunciado,alternativas&order=modulo_id,ordem'),
       Api.sel('config',     'select=*'),
       Api.sel('perfis',     'select=id,papel,nome,usuario,criado_em'),
       Api.sel('motoristas', 'select=*'),
-      Api.sel('progresso',  'select=*')
+      Api.sel('progresso',  'select=*'),
+      Api.sel('modulo_motoristas', 'select=*')
     ]).then(function(r){
-      var mods = r[0], pergs = r[1], cfg = r[2], perfis = r[3], cads = r[4], prog = r[5];
-      self.d.modulos = mods.map(function(m){
+      var mods = r[0], pergs = r[1], cfg = r[2], perfis = r[3], cads = r[4], prog = r[5], atr = r[6];
+      /* quem recebe cada aula aberta só aos selecionados */
+      self.d.atrib = {};
+      atr.forEach(function(x){ (self.d.atrib[x.modulo_id] = self.d.atrib[x.modulo_id] || {})[x.motorista_id] = true });
+      /* todas as aulas (inclusive arquivadas) para a tela de gestão; as ativas para o resto */
+      self.d.aulas = mods.map(function(m){
         return {id:m.id, ord:m.ordem, titulo:m.titulo, curto:m.curto, desc:m.descricao,
                 duracao:m.duracao_txt, video:m.video_id, videoSeg:m.video_seg, fonte:m.fonte, tema:m.tema,
+                videoTipo:m.video_tipo || 'youtube', arquivo:m.video_arquivo, publico:m.publico || 'todos',
+                criadoPor:m.criado_por, ativo:m.ativo, criadoEm:m.criado_em,
                 quiz: pergs.filter(function(q){ return q.modulo_id === m.id })
                            .map(function(q){ return [q.enunciado, q.alternativas] })};
       });
+      self.d.modulos = self.d.aulas.filter(function(m){ return m.ativo });
       cfg.forEach(function(c){
         if(c.chave === 'aprovacao')    self.d.aprovacao   = +c.valor;
         if(c.chave === 'limiar_video') self.d.limiarVideo = +c.valor;
@@ -159,8 +167,17 @@ var Store = {
   motorista: function(id){ return this.d.motoristas.filter(function(m){ return m.id === id })[0] },
 
   /* progresso da trilha: vídeo vale metade do módulo, quiz aprovado a outra metade */
+  /* aulas ativas que valem para um motorista: abertas a todos ou atribuídas a ele */
+  atribuida: function(mot, mod){
+    var m = typeof mod === 'string' ? this.mod(mod) : mod;
+    return !!m && (m.publico === 'todos' || !!((this.d.atrib[m.id] || {})[mot]));
+  },
+  modsDe: function(mot){
+    return this.d.modulos.filter(function(m){ return this.atribuida(mot, m) }, this);
+  },
+
   resumo: function(mot){
-    var mods = this.d.modulos, ok = 0, soma = 0;
+    var mods = this.modsDe(mot), ok = 0, soma = 0;
     mods.forEach(function(m){
       var p = this.prog(mot, m.id);
       if(p.status === 'concluido'){ ok++; soma += 1 }
@@ -171,7 +188,7 @@ var Store = {
 
   /* concluiu tudo > tem reprovado > começou > não começou */
   estado: function(mot){
-    var mods = this.d.modulos, ok = 0, repr = false, algum = false;
+    var mods = this.modsDe(mot), ok = 0, repr = false, algum = false;
     mods.forEach(function(m){
       var p = this.prog(mot, m.id);
       if(p.status === 'concluido'){ ok++; algum = true }
@@ -185,7 +202,7 @@ var Store = {
 
   /* média das notas atuais (aprovação ou última tentativa) */
   media: function(mot){
-    var ns = this.d.modulos.map(function(m){ return this.prog(mot, m.id).nota }, this)
+    var ns = this.modsDe(mot).map(function(m){ return this.prog(mot, m.id).nota }, this)
                            .filter(function(n){ return n != null });
     return ns.length ? Math.round(ns.reduce(function(s,x){ return s+x },0) / ns.length) : null;
   },
@@ -194,14 +211,14 @@ var Store = {
      É o que mede aprendizado: com tentativas ilimitadas, a nota final tende a
      100% por eliminação; a primeira tentativa é a que reflete a aula. */
   aproveitamento: function(mot){
-    var ns = this.d.modulos.map(function(m){ return this.prog(mot, m.id).notaPrimeira }, this)
+    var ns = this.modsDe(mot).map(function(m){ return this.prog(mot, m.id).notaPrimeira }, this)
                            .filter(function(n){ return n != null });
     return ns.length ? Math.round(ns.reduce(function(s,x){ return s+x },0) / ns.length) : null;
   },
 
   ultima: function(mot){
     var d = null;
-    this.d.modulos.forEach(function(m){
+    this.modsDe(mot).forEach(function(m){
       var u = this.prog(mot, m.id).ultima;
       if(u && (!d || cmpData(u, d) > 0)) d = u;
     }, this);
@@ -220,7 +237,7 @@ var Sessao = {
   inicia: function(){
     var self = this, uid = Api.s && Api.s.user && Api.s.user.id;
     if(!uid) return Promise.reject(new Error('sem sessão'));
-    return Api.sel('perfis', 'select=id,papel,nome,usuario&id=eq.' + uid).then(function(r){
+    return Api.sel('perfis', 'select=id,papel,nome,usuario,exemplo&id=eq.' + uid).then(function(r){
       if(!r || !r[0]) throw new Error('Perfil não encontrado para esta conta.');
       self.eu = r[0];
       self.perfil = r[0].papel === 'supervisor' ? 'gestor' : 'motorista';
@@ -233,7 +250,7 @@ var Sessao = {
     Api.sair();
     this.perfil = this.motorista = this.eu = null;
     Store.pronto = false;
-    Store.d = {modulos:[], motoristas:[], progresso:{}, aprovacao:70, limiarVideo:0.95};
+    Store.d = {modulos:[], aulas:[], atrib:{}, motoristas:[], progresso:{}, aprovacao:70, limiarVideo:0.95};
     Rota.ir('#/');
   }
 };
@@ -256,6 +273,7 @@ var MENU_MOT = [
 var MENU_GES = [
   {h:'#/gestor', t:'Visão geral', i:'grafico'},
   {h:'#/gestor/treinamentos', t:'Gestão de Treinamentos', i:'pessoas'},
+  {h:'#/gestor/aulas', t:'Aulas', i:'play'},
   {h:'#/gestor/novo', t:'Convidar motorista', i:'seta'}
 ];
 function menu(){ return Sessao.perfil === 'gestor' ? MENU_GES : MENU_MOT }
@@ -264,6 +282,7 @@ function ativo(h){
   var a = Rota.atual;
   if(h === '#/motorista') return a === '#/motorista' || a.indexOf('#/motorista/treino') === 0;
   if(h === '#/gestor') return a === '#/gestor';
+  if(h === '#/gestor/aulas') return a.indexOf('#/gestor/aula') === 0;
   if(h === '#/gestor/treinamentos')
     return a.indexOf('#/gestor/treinamentos') === 0 || a.indexOf('#/gestor/motorista/') === 0;
   return a.indexOf(h) === 0;
@@ -363,6 +382,8 @@ function desenha(){
   else if(a.indexOf('#/gestor/motorista/') === 0) c = telaGestorDetalhe(a.split('/')[3]);
   else if(a === '#/gestor/treinamentos')          c = telaGestorTreinamentos();
   else if(a === '#/gestor/novo')                  c = telaGestorForm(null);
+  else if(a === '#/gestor/aulas')                 c = telaAulas();
+  else if(a.indexOf('#/gestor/aula/') === 0)      c = telaAulaForm(a.split('/')[3]);
   else                                            c = telaGestor();
 
   el.innerHTML = casco(c);
@@ -407,12 +428,14 @@ function ligaEventos(){
     if((t = e.target.closest('[data-sair]'))) { Player.destroi(); Sessao.sai(); return }
     if((t = e.target.closest('[data-copia]'))){ copia(t.dataset.copia, t); return }
     if(typeof cliqueTreino === 'function' && cliqueTreino(e)) return;
+    if(typeof cliqueAulas === 'function' && cliqueAulas(e)) return;
     if(typeof cliqueGestor === 'function' && cliqueGestor(e)) return;
   });
   document.addEventListener('submit', function(e){
     var f = e.target;
     if(f.id === 'f-login')  { e.preventDefault(); enviaLogin(f); return }
     if(f.id === 'f-convite'){ e.preventDefault(); enviaLogin(f); return }
+    if(f.id === 'f-aula')   { e.preventDefault(); salvaAula(); return }
     if(typeof submitGestor === 'function' && submitGestor(e)) return;
   });
 }
