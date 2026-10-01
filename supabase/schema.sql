@@ -1,5 +1,5 @@
 -- ============================================================================
--- Academia do Motorista Autonomoz — esquema no Supabase
+-- Academia do Motorista — esquema no Supabase
 --
 -- PRINCÍPIO: o navegador só LÊ. Toda escrita passa por uma função do banco
 -- (security definer) ou pela função de servidor `gestao-motoristas`, que usa a
