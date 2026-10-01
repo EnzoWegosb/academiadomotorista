@@ -26,10 +26,15 @@ real. Feito com [Anycast](https://anycast.excom.ai).
 Em **Aulas → Nova aula** o supervisor escolhe o vídeo (link do YouTube ou arquivo
 MP4/WebM/MOV de até 50 MB, guardado no bucket privado `aulas`), dá título, define
 quem recebe (todos ou motoristas escolhidos) e cadastra as perguntas (2 a 5
-alternativas cada). O botão **Gerar com IA** escreve um rascunho de quiz a partir
-da transcrição/resumo colado, da legenda ou da descrição do YouTube — exige o
-segredo `ANTHROPIC_API_KEY` na Edge Function `gerar-perguntas`. Aula com
-tentativas registradas não muda vídeo nem perguntas.
+alternativas cada). "Todos os motoristas" é uma opção acima da lista (na conta de
+demonstração, vale para todos os motoristas de exemplo). O botão **Gerar com IA**
+escreve um rascunho de quiz a partir da transcrição/resumo colado, da legenda ou da
+descrição do YouTube — exige o segredo `ANTHROPIC_API_KEY` na Edge Function
+`gerar-perguntas`; sem ele, a tela avisa direto. Aulas já feitas podem ser editadas:
+as notas registradas ficam, as mudanças valem para as próximas tentativas.
+
+Em **Supervisores**, um supervisor convida outro; o convidado herda a classe de quem
+convida (real ou de demonstração).
 
 ## Regras garantidas pelo banco (não pela tela)
 

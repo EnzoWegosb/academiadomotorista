@@ -27,7 +27,19 @@ function fmtDur(s){
 }
 function mb(b){ return (b / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB' }
 function souExemplo(){ return !!(Sessao.eu && Sessao.eu.exemplo) }
-function possoEditar(m){ return !souExemplo() || m.criadoPor === Sessao.eu.id }
+/* toda aula que o supervisor enxerga pode ser editada (a conta de demonstração inclusive) */
+function possoEditar(m){ return true }
+/* arquivar some com a aula para TODOS: a conta de demonstração só arquiva aulas
+   criadas por contas de demonstração (os supervisores que ela enxerga são da mesma classe) */
+function possoArquivar(m){
+  if(!souExemplo()) return true;
+  return !!m.criadoPor && (Store.d.perfis || []).some(function(p){ return p.id === m.criadoPor && p.exemplo });
+}
+function rotuloQuem(m, n){
+  if(m.publico === 'todos') return 'Todos os motoristas';
+  if(m.publico === 'exemplos') return 'Todos os motoristas de exemplo';
+  return n + ' motorista' + (n === 1 ? '' : 's');
+}
 
 /* ============================================================ lista */
 function telaAulas(){
@@ -35,8 +47,7 @@ function telaAulas(){
   var lin = aulas.map(function(m){
     var alvo = Store.d.motoristas.filter(function(d){ return Store.atribuida(d.id, m) });
     var ok = alvo.filter(function(d){ return Store.prog(d.id, m.id).status === 'concluido' }).length;
-    var quem = m.publico === 'todos' ? 'Todos os motoristas'
-             : alvo.length + ' motorista' + (alvo.length === 1 ? '' : 's');
+    var quem = rotuloQuem(m, alvo.length);
     return '<article class="aula-l'+(m.ativo ? '' : ' aula-off')+'">'
       + '<div class="mod-ic">'+ic(IC_TEMA[m.tema] || 'play', 22)+'</div>'
       + '<div class="aula-c">'
@@ -52,10 +63,9 @@ function telaAulas(){
       +   '</div>'
       + '</div>'
       + '<div class="bts">'
-      +   (possoEditar(m) ? '<button class="bt bt-ln bt-sm" data-ir="#/gestor/aula/'+m.id+'">Editar</button>'
-                          + '<button class="bt bt-gh bt-sm" data-arquiva="'+m.id+'" data-ativo="'+(m.ativo ? '0' : '1')+'">'
-                          + (m.ativo ? 'Arquivar' : 'Reativar')+'</button>'
-                          : '<span class="sub" style="font-size:12.5px">Somente leitura</span>')
+      +   '<button class="bt bt-ln bt-sm" data-ir="#/gestor/aula/'+m.id+'">Editar</button>'
+      +   (possoArquivar(m) ? '<button class="bt bt-gh bt-sm" data-arquiva="'+m.id+'" data-ativo="'+(m.ativo ? '0' : '1')+'">'
+                          + (m.ativo ? 'Arquivar' : 'Reativar')+'</button>' : '')
       + '</div>'
       + '</article>';
   }).join('');
@@ -65,8 +75,8 @@ function telaAulas(){
   +   '<h1 class="h1" style="margin-top:8px">Aulas da Academia</h1>'
   +   '<p class="sub" style="margin-top:7px">Vídeo do YouTube ou arquivo próprio, para todos ou para motoristas escolhidos.</p></div>'
   + '<button class="bt bt-pr bt-sm" data-ir="#/gestor/aula/nova">'+ic('play', 16)+' Nova aula</button></div>'
-  + (souExemplo() ? nota('<b>Conta de demonstração:</b> as aulas que você criar ficam visíveis só para os '
-                       + 'motoristas de exemplo que você escolher.') : '')
+  + (souExemplo() ? nota('<b>Conta de demonstração:</b> as aulas que você criar alcançam só motoristas de exemplo — '
+                       + '"Todos os motoristas", aqui, são todos os motoristas de exemplo.') : '')
   + '<div class="aula-lista">' + (lin || '<div class="cd vazio">Nenhuma aula.</div>') + '</div>'
   + rodape();
 }
@@ -78,7 +88,11 @@ function telaAulaForm(id){
   if(!nova && (!m || !possoEditar(m))){ location.hash = '#/gestor/aulas'; return '' }
   AF = {id: nova ? null : id, carregado: nova, tipo: m ? m.videoTipo : 'youtube',
         videoId: m ? m.video : null, arquivo: m ? m.arquivo : null, file: null,
-        seg: m ? m.videoSeg : null, publico: souExemplo() ? 'selecionados' : (m ? m.publico : 'todos'),
+        seg: m ? m.videoSeg : null, pubOrig: m ? m.publico : null, arquivoOrig: m ? m.arquivo : null,
+        /* "todos" é uma opção clicável acima da lista (não uma aba) */
+        todos: m ? m.publico !== 'selecionados' : false,
+        /* a conta de demonstração edita aula aberta a todos, mas não muda quem a recebe */
+        publicoTravado: !!(m && souExemplo() && m.publico === 'todos'),
         motoristas: {}, perguntas: [], tentativas: 0, perguntasOrig: '', busca: ''};
   if(nova) AF.perguntas = [novaPergunta()];
 
@@ -95,13 +109,12 @@ function telaAulaForm(id){
 function novaPergunta(){ return {enunciado: '', alternativas: ['', '', '', ''], correta: null} }
 
 function corpoAula(m){
-  var travado = AF.tentativas > 0;
+  var travado = false;
   return ''
   /* ---- 1. vídeo ---- */
   + '<section class="cd"><div class="lbl" style="margin-bottom:14px">1 · Vídeo</div>'
-  + (travado ? nota('<b>Esta aula já tem '+AF.tentativas+' tentativa'+(AF.tentativas === 1 ? '' : 's')+' de quiz.</b> '
-       + 'O vídeo e as perguntas ficam travados para não mudar o significado das notas já registradas. '
-       + 'Título, descrição e quem recebe continuam editáveis. Para mudar o conteúdo, crie uma aula nova.') : '')
+  + (AF.tentativas > 0 ? nota('<b>Esta aula já tem '+AF.tentativas+' tentativa'+(AF.tentativas === 1 ? '' : 's')+' de quiz.</b> '
+       + 'As notas já registradas continuam valendo; o que você mudar aqui vale para as próximas tentativas.') : '')
   + '<div class="segm" role="radiogroup">'
   +   '<button type="button" class="segm-b'+(AF.tipo === 'youtube' ? ' on' : '')+'" data-tipo="youtube"'+(travado ? ' disabled' : '')+'>'
   +     ic('play', 15)+' Link do YouTube</button>'
@@ -125,11 +138,6 @@ function corpoAula(m){
 
   /* ---- 3. quem recebe ---- */
   + '<section class="cd"><div class="lbl" style="margin-bottom:14px">3 · Quem recebe</div>'
-  + '<div class="segm" role="radiogroup">'
-  +   '<button type="button" class="segm-b'+(AF.publico === 'todos' ? ' on' : '')+'" data-pub="todos"'
-  +     (souExemplo() ? ' disabled title="Indisponível na conta de demonstração"' : '')+'>Todos os motoristas</button>'
-  +   '<button type="button" class="segm-b'+(AF.publico === 'selecionados' ? ' on' : '')+'" data-pub="selecionados">Escolher motoristas</button>'
-  + '</div>'
   + '<div id="af-mot">' + blocoMotoristas() + '</div></section>'
 
   /* ---- 4. perguntas ---- */
@@ -138,7 +146,7 @@ function corpoAula(m){
   +   (travado ? '' : '<button type="button" class="bt bt-ln bt-sm" id="af-ia">'+ic('estrela', 15)+' Gerar com IA</button>')
   + '</div>'
   + '<div id="af-ia-p"></div>'
-  + '<div id="af-qs">' + blocoPerguntasEd(travado) + '</div>'
+  + '<div id="af-qs">' + blocoPerguntasEd(false) + '</div>'
   + (travado ? '' : '<button type="button" class="bt bt-gh bt-sm" id="af-addq">+ Adicionar pergunta</button>')
   + '</section>'
 
@@ -166,15 +174,23 @@ function prevYT(id){
 }
 
 function blocoMotoristas(){
-  if(AF.publico === 'todos')
-    return '<div class="sub" style="margin-top:12px">Todos os motoristas, inclusive os cadastrados depois, recebem esta aula.</div>';
+  var deEx = souExemplo() || AF.pubOrig === 'exemplos';
+  var rotulo = deEx ? 'Todos os motoristas de exemplo' : 'Todos os motoristas';
+  var sub = AF.publicoTravado ? 'Aula aberta a todos os motoristas. A conta de demonstração não altera quem recebe esta aula.'
+          : (deEx ? 'Inclusive os motoristas de exemplo cadastrados depois. Motoristas reais não recebem.'
+                          : 'Inclusive os motoristas cadastrados depois.');
+  var opc = '<label class="todos-op'+(AF.todos ? ' on' : '')+'">'
+    + '<input type="checkbox" id="af-todos"'+(AF.todos ? ' checked' : '')+(AF.publicoTravado ? ' disabled' : '')+'>'
+    + '<span class="mot-n"><b>'+rotulo+'</b><i>'+sub+'</i></span></label>';
+  if(AF.todos) return opc;
   var b = AF.busca.toLowerCase();
   var lista = Store.d.motoristas.filter(function(d){ return d.ativo !== false })
     .filter(function(d){ return !b || d.nome.toLowerCase().indexOf(b) >= 0 || d.usuario.indexOf(b) >= 0 });
   var n = Object.keys(AF.motoristas).length;
-  return '<div class="topo" style="margin:14px 0 10px;align-items:center;gap:10px">'
+  return opc
+    + '<div class="topo" style="margin:14px 0 10px;align-items:center;gap:10px">'
     + '<input class="in" id="af-busca" placeholder="Buscar motorista" value="'+esc(AF.busca)+'" style="max-width:280px">'
-    + '<div class="bts"><span class="sub" id="af-nmot">'+n+' selecionado'+(n === 1 ? '' : 's')+'</span>'
+    + '<div class="bts mot-acoes"><span class="sub" id="af-nmot">'+n+' selecionado'+(n === 1 ? '' : 's')+'</span>'
     + '<button type="button" class="bt bt-gh bt-sm" data-selmot="todos">Marcar visíveis</button>'
     + '<button type="button" class="bt bt-gh bt-sm" data-selmot="nenhum">Limpar</button></div></div>'
     + '<div class="mot-l">' + (lista.map(function(d){
@@ -205,7 +221,7 @@ function blocoPerguntasEd(travado){
   }).join('');
 }
 
-function redesenhaQs(){ var e = $('#af-qs'); if(e) e.innerHTML = blocoPerguntasEd(AF.tentativas > 0) }
+function redesenhaQs(){ var e = $('#af-qs'); if(e) e.innerHTML = blocoPerguntasEd(false) }
 function redesenhaMot(){ var e = $('#af-mot'); if(e) e.innerHTML = blocoMotoristas() }
 
 /* ---- carrega a aula existente (perguntas COM gabarito, só para supervisor) ---- */
@@ -263,9 +279,24 @@ function detectaArquivo(f){
 }
 
 /* ---- geração com IA ---- */
+var IA_OK = null;   /* null = ainda não consultado */
+var AVISO_IA = '<div class="trava" style="margin-bottom:12px"><span class="ic">'+ic('alerta', 18)+'</span><span>'
+  + '<b>A geração por IA ainda não está ativada.</b> Nenhuma chave de serviço de IA está vinculada a este sistema. '
+  + 'Quando tiver a chave, envie pelo Anycast que a geração automática é ligada. '
+  + 'Enquanto isso, cadastre as perguntas manualmente.</span></div>';
+
 function painelIA(){
   var e = $('#af-ia-p'); if(!e) return;
   if(e.innerHTML){ e.innerHTML = ''; return }
+  if(IA_OK === false){ e.innerHTML = AVISO_IA; return }
+  if(IA_OK === null){
+    e.innerHTML = '<div class="sub" style="margin-bottom:12px">Verificando a IA…</div>';
+    Api.garante().then(function(){ return Api._req('POST', '/functions/v1/gerar-perguntas', {status: true}) })
+      .then(function(r){ IA_OK = !!r.configurada })
+      .catch(function(){ IA_OK = null })
+      .then(function(){ e.innerHTML = ''; if(IA_OK === null) e.innerHTML = '<div class="sub" style="margin-bottom:12px;color:var(--err)">Não foi possível consultar a IA agora. Tente de novo.</div>'; else painelIA() });
+    return;
+  }
   e.innerHTML = '<div class="ia-p">'
     + '<div class="sub" style="margin-bottom:10px">A IA escreve um <b>rascunho</b> a partir do material da aula; '
     + 'você revisa antes de salvar. Para vídeo do YouTube ela tenta ler a legenda; se não conseguir, usa a descrição do vídeo. '
@@ -296,7 +327,7 @@ function geraIA(){
   }).catch(function(e){
     bt.disabled = false;
     st.innerHTML = '<span style="color:var(--err)">' + esc(
-      e.status === 501 ? 'A geração por IA ainda não está ativada neste sistema (falta a chave do serviço de IA no servidor). Cadastre as perguntas manualmente por enquanto.'
+      e.status === 501 ? (IA_OK = false, 'A geração por IA ainda não está ativada: nenhuma chave de IA vinculada. Cadastre as perguntas manualmente.')
       : (e.dados && e.dados.erro === 'MATERIAL_INSUFICIENTE')
         ? 'Material insuficiente para gerar perguntas confiáveis. Cole a transcrição ou um resumo da aula (pelo menos um parágrafo).'
         : erroLegivel(e)) + '</span>';
@@ -336,7 +367,7 @@ function salvaAula(){
   if(AF.tipo === 'youtube' && !AF.videoId) falta.push('link válido do YouTube');
   if(AF.tipo === 'arquivo' && !AF.file && !AF.arquivo) falta.push('arquivo de vídeo');
   if(!seg || seg < 5) falta.push('duração do vídeo');
-  if(AF.publico === 'selecionados' && !Object.keys(AF.motoristas).length) falta.push('ao menos um motorista');
+  if(!AF.todos && !Object.keys(AF.motoristas).length) falta.push('ao menos um motorista (ou marque "Todos")');
   AF.perguntas.forEach(function(q, i){
     if(q.enunciado.trim().length < 5 || q.alternativas.some(function(a){ return !a.trim() }) || q.correta == null
        || q.correta >= q.alternativas.length) falta.push('pergunta ' + (i + 1) + ' completa, com a correta marcada');
@@ -352,9 +383,14 @@ function salvaAula(){
     return Api.rpc('salvar_aula', {p: {
       id: AF.id, titulo: titulo, descricao: $('#af-desc').value.trim(), video_tipo: AF.tipo,
       video_id: AF.tipo === 'youtube' ? AF.videoId : null, video_arquivo: AF.tipo === 'arquivo' ? arq : null,
-      video_seg: seg, publico: AF.publico, motoristas: Object.keys(AF.motoristas),
+      /* "todos" mantém o público original quando já era aberto (inclusive o "todos os de exemplo") */
+      video_seg: seg, publico: AF.todos ? (AF.pubOrig === 'exemplos' ? 'exemplos' : 'todos') : 'selecionados',
+      motoristas: Object.keys(AF.motoristas),
       perguntas: AF.perguntas, perguntas_alteradas: JSON.stringify(AF.perguntas) !== AF.perguntasOrig}});
   }).then(function(id){
+    /* vídeo próprio substituído: tira o arquivo antigo do armazenamento (se falhar, não atrapalha) */
+    var novo = AF.tipo === 'arquivo' ? (enviado || AF.arquivo) : null;
+    if(AF.arquivoOrig && AF.arquivoOrig !== novo) apagaArquivo(AF.arquivoOrig);
     aviso(AF.id ? 'Aula atualizada.' : 'Aula criada.');
     AF = null;
     return Store.carrega().then(function(){ Rota.ir('#/gestor/aulas') });
@@ -382,11 +418,6 @@ function cliqueAulas(e){
     AF.tipo = t.dataset.tipo;
     $$('[data-tipo]').forEach(function(b){ b.classList.toggle('on', b === t) });
     $('#af-video').innerHTML = blocoVideo(false); return true;
-  }
-  if((t = e.target.closest('[data-pub]')) && !t.disabled){
-    AF.publico = t.dataset.pub;
-    $$('[data-pub]').forEach(function(b){ b.classList.toggle('on', b === t) });
-    redesenhaMot(); return true;
   }
   if((t = e.target.closest('[data-selmot]'))){
     var marcar = t.dataset.selmot === 'todos';
@@ -427,6 +458,7 @@ document.addEventListener('change', function(e){
   if(!AF) return;
   var t = e.target, d = t.dataset || {};
   if(d.qc !== undefined){ AF.perguntas[+d.qc].correta = +t.value; return }
+  if(t.id === 'af-todos'){ AF.todos = t.checked; redesenhaMot(); return }
   if(d.motCk !== undefined){
     if(t.checked) AF.motoristas[d.motCk] = true; else delete AF.motoristas[d.motCk];
     var n = Object.keys(AF.motoristas).length, s = $('#af-nmot'); if(s) s.textContent = n + ' selecionado' + (n === 1 ? '' : 's');

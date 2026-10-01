@@ -73,10 +73,11 @@ Deno.serve(async (req) => {
   if (perfil?.papel !== "supervisor") return resp(403, { erro: "Somente supervisores" });
 
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!chave) return resp(501, { erro: "GERACAO_NAO_CONFIGURADA" });
-
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return resp(400, { erro: "Corpo inválido" }); }
+  // consulta rápida: a tela pergunta antes de pedir material ao supervisor
+  if (b.status) return resp(200, { configurada: !!chave });
+  if (!chave) return resp(501, { erro: "GERACAO_NAO_CONFIGURADA" });
   const titulo = String(b.titulo ?? "").trim();
   const descricao = String(b.descricao ?? "").trim();
   const colado = String(b.texto ?? "").trim().slice(0, 60000);

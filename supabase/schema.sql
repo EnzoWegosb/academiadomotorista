@@ -39,6 +39,8 @@ create table if not exists public.perfis (
 -- supervisor de EXEMPLO (conta compartilhável para apresentar o sistema):
 -- só enxerga e gerencia motoristas de exemplo e os que ele mesmo cadastrou.
 alter table public.perfis add column if not exists exemplo boolean not null default false;
+-- quem convidou (supervisores convidados por outro supervisor)
+alter table public.perfis add column if not exists convidado_por uuid references public.perfis(id) on delete set null;
 
 -- ---------------------------------------------------------------- motoristas
 -- Cadastro feito pelo supervisor. O motorista lê, nunca altera.
@@ -163,6 +165,15 @@ as $$
   end;
 $$;
 
+-- Supervisor enxerga os supervisores da MESMA classe (real com real, demonstração com demonstração)
+create or replace function public.pode_ver_supervisor(p_id uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select exists (select 1 from public.perfis eu join public.perfis o on o.id = p_id
+                 where eu.id = auth.uid() and eu.papel = 'supervisor' and o.papel = 'supervisor'
+                   and eu.exemplo = o.exemplo);
+$$;
+
 create or replace function public.cfg(p_chave text)
 returns numeric language sql stable security definer set search_path = ''
 as $$ select valor from public.config where chave = p_chave $$;
@@ -226,9 +237,9 @@ alter table public.modulos add column if not exists criado_em timestamptz not nu
 do $$ begin
   alter table public.modulos add constraint modulos_video_tipo check (video_tipo in ('youtube','arquivo'));
 exception when duplicate_object then null; end $$;
-do $$ begin
-  alter table public.modulos add constraint modulos_publico check (publico in ('todos','selecionados'));
-exception when duplicate_object then null; end $$;
+-- 'exemplos' = todos os motoristas de exemplo (é o "Todos" da conta de demonstração)
+alter table public.modulos drop constraint if exists modulos_publico;
+alter table public.modulos add constraint modulos_publico check (publico in ('todos','selecionados','exemplos'));
 
 create table if not exists public.modulo_motoristas (
   modulo_id    text not null references public.modulos(id) on delete cascade,
@@ -245,11 +256,14 @@ returns boolean language sql stable security definer set search_path = ''
 as $$
   select case
     when exists (select 1 from public.perfis where id = auth.uid() and papel = 'supervisor' and not exemplo) then true
+    -- conta de demonstração: trilha inicial, aulas abertas e as criadas por QUALQUER conta de demonstração
     when exists (select 1 from public.perfis where id = auth.uid() and papel = 'supervisor' and exemplo) then
       exists (select 1 from public.modulos m where m.id = p_mod
-              and (m.criado_por is null or m.publico = 'todos' or m.criado_por = auth.uid()))
+              and (m.criado_por is null or m.publico in ('todos','exemplos')
+                   or exists (select 1 from public.perfis c where c.id = m.criado_por and c.exemplo)))
     else exists (select 1 from public.modulos m join public.motoristas d on d.id = auth.uid() and d.ativo
                  where m.id = p_mod and (m.publico = 'todos'
+                   or (m.publico = 'exemplos' and coalesce(d.observacoes,'') like 'EXEMPLO%')
                    or exists (select 1 from public.modulo_motoristas x where x.modulo_id = m.id and x.motorista_id = d.id)))
   end;
 $$;
@@ -288,22 +302,21 @@ begin
       raise exception 'AULA_PERGUNTA_INVALIDA';
     end if;
   end loop;
-  -- supervisor de exemplo nunca abre aula para todos (alcançaria motoristas reais)
-  if v_ex then v_pub := 'selecionados'; end if;
+  if v_pub not in ('todos','selecionados','exemplos') then raise exception 'AULA_PUBLICO'; end if;
+  -- na conta de demonstração, "Todos" significa todos os motoristas de EXEMPLO
+  -- (inclusive os futuros); motoristas reais nunca são alcançados por ela
+  if v_ex and v_pub = 'todos' then v_pub := 'exemplos'; end if;
 
   if v_id is not null then
     select * into v_ant from public.modulos where id = v_id for update;
     if v_ant is null then raise exception 'AULA_INEXISTENTE'; end if;
-    if v_ex and v_ant.criado_por is distinct from v_eu then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
-    select count(*) into v_tent from public.tentativas where modulo_id = v_id;
-    -- com tentativas registradas, vídeo e perguntas ficam travados: mudar o
-    -- gabarito reescreveria o significado das notas já dadas
-    if v_tent > 0 and (v_ant.video_tipo is distinct from v_tipo
-        or coalesce(v_ant.video_id,'') <> coalesce(p->>'video_id','')
-        or coalesce(v_ant.video_arquivo,'') <> coalesce(p->>'video_arquivo','')
-        or (p->>'perguntas_alteradas')::boolean is true) then
-      raise exception 'AULA_COM_TENTATIVAS';
-    end if;
+    -- qualquer supervisor edita as aulas que enxerga (a conta de demonstração inclusive)
+    if not public.pode_ver_modulo(v_id) then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+    -- A conta de demonstração pode editar uma aula aberta a todos, mas NÃO muda
+    -- quem a recebe: restringir o público tiraria a aula dos motoristas reais.
+    if v_ex and v_ant.publico = 'todos' then v_pub := 'todos'; end if;
+    -- Aula com tentativas também pode ser editada. As notas já registradas
+    -- ficam como estão; as mudanças valem para as próximas tentativas.
     update public.modulos set titulo = trim(p->>'titulo'), curto = left(trim(p->>'titulo'), 40),
       descricao = coalesce(trim(p->>'descricao'),''), video_tipo = v_tipo,
       video_id = case when v_tipo='youtube' then p->>'video_id' end,
@@ -322,7 +335,7 @@ begin
             v_tipo, case when v_tipo='arquivo' then p->>'video_arquivo' end, v_pub, v_eu);
   end if;
 
-  if v_tent = 0 then
+  if true then
     delete from public.perguntas where modulo_id = v_id;
     for v_q in select * from jsonb_array_elements(p->'perguntas') loop
       v_i := v_i + 1;
@@ -357,7 +370,7 @@ begin
   if v_ex is null then raise exception 'SOMENTE_SUPERVISOR' using errcode = '42501'; end if;
   select * into v_m from public.modulos where id = p_id;
   if v_m is null then raise exception 'AULA_INEXISTENTE'; end if;
-  if v_ex and v_m.criado_por is distinct from auth.uid() then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+  if not public.pode_ver_modulo(p_id) then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
   return jsonb_build_object(
     'tentativas', (select count(*) from public.tentativas where modulo_id = p_id),
     'motoristas', coalesce((select jsonb_agg(motorista_id) from public.modulo_motoristas where modulo_id = p_id), '[]'),
@@ -376,7 +389,8 @@ begin
   if v_ex is null then raise exception 'SOMENTE_SUPERVISOR' using errcode = '42501'; end if;
   select criado_por into v_dono from public.modulos where id = p_id;
   if not found then raise exception 'AULA_INEXISTENTE'; end if;
-  if v_ex and v_dono is distinct from auth.uid() then raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
+  if v_ex and not exists (select 1 from public.perfis c where c.id = v_dono and c.exemplo) then
+    raise exception 'AULA_SEM_PERMISSAO' using errcode = '42501'; end if;
   update public.modulos set ativo = p_ativo where id = p_id;
 end $$;
 
@@ -569,7 +583,7 @@ create policy le_config on public.config for select to authenticated using (true
 
 drop policy if exists le_perfil on public.perfis;
 create policy le_perfil on public.perfis for select to authenticated
-  using (id = auth.uid() or public.pode_ver_motorista(id));
+  using (id = auth.uid() or public.pode_ver_motorista(id) or public.pode_ver_supervisor(id));
 
 drop policy if exists le_motorista on public.motoristas;
 create policy le_motorista on public.motoristas for select to authenticated
@@ -608,6 +622,7 @@ grant execute on function public.aula_para_editar(text)            to authentica
 grant execute on function public.arquivar_aula(text, boolean)      to authenticated;
 grant execute on function public.eh_supervisor()                   to authenticated;
 grant execute on function public.pode_ver_motorista(uuid)          to authenticated;
+grant execute on function public.pode_ver_supervisor(uuid)         to authenticated;
 revoke execute on function public._motorista_ativo() from authenticated;
 revoke execute on function public.cfg(text)          from authenticated;
 revoke execute on function public.autorizar_troca_senha(uuid) from authenticated;

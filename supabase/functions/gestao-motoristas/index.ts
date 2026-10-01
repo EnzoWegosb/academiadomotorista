@@ -5,7 +5,7 @@
 // o papel é conferido na tabela `perfis` a cada chamada (nunca em metadados
 // que o próprio usuário consegue editar).
 //
-// Ações: criar · atualizar · senha · desativar · reativar · novo_convite
+// Ações: criar · atualizar · senha · desativar · reativar · novo_convite · criar_supervisor
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -132,6 +132,35 @@ Deno.serve(async (req) => {
       await admin.from("progresso").insert(mods.map((m) => ({ motorista_id: uid, modulo_id: m.id })));
     }
     return resp(200, { id: uid, usuario, nome, convite_token: mot.convite_token });
+  }
+
+  // ============================================================ convidar supervisor
+  // O novo supervisor herda a CLASSE de quem convida: convidado por uma conta de
+  // demonstração também é de demonstração (só enxerga exemplos); convidado por
+  // um supervisor real tem acesso completo.
+  if (acao === "criar_supervisor") {
+    const nome = String(b.nome ?? "").trim().replace(/\s+/g, " ");
+    const senha = String(b.senha ?? "");
+    if (nome.length < 3) return resp(400, { erro: "Informe o nome completo" });
+    if (senha.length < 8) return resp(400, { erro: "A senha precisa ter pelo menos 8 caracteres" });
+    let base = String(b.usuario ?? "").trim().toLowerCase() || slug(nome);
+    if (!/^[a-z0-9._-]{3,40}$/.test(base)) return resp(400, { erro: "Usuário: 3 a 40 caracteres, letras minúsculas, números, ponto, hífen" });
+    let usuario = base;
+    for (let n = 2; n < 200; n++) {
+      const { data } = await admin.from("perfis").select("id").eq("usuario", usuario).maybeSingle();
+      if (!data) break;
+      if (b.usuario) return resp(409, { erro: `O usuário "${usuario}" já existe` });
+      usuario = `${base}${n}`;
+    }
+    const { data: novo, error: e1 } = await admin.auth.admin.createUser({
+      email: `${usuario}@${DOMINIO}`, password: senha, email_confirm: true,
+      app_metadata: { papel: "supervisor", exemplo },
+    });
+    if (e1 || !novo?.user) return resp(400, { erro: "Não foi possível criar o acesso: " + (e1?.message ?? "") });
+    const { error: e2 } = await admin.from("perfis").insert({
+      id: novo.user.id, papel: "supervisor", nome, usuario, exemplo, convidado_por: quem.user.id });
+    if (e2) { await admin.auth.admin.deleteUser(novo.user.id); return resp(400, { erro: "Falha ao gravar o perfil: " + e2.message }); }
+    return resp(200, { id: novo.user.id, usuario, nome, exemplo });
   }
 
   if (!(await alvoMotorista())) return resp(404, { erro: "Motorista não encontrado" });

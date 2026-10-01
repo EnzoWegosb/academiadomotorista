@@ -22,7 +22,7 @@ from ambiente import segredo  # noqa: E402
 
 APP = os.path.join(AQUI, 'app')
 DIST = os.path.join(RAIZ, 'dist')
-ORDEM_JS = ('api.js', 'core.js', 'player.js', 'motorista.js', 'gestor.js', 'aulas.js')
+ORDEM_JS = ('api.js', 'core.js', 'player.js', 'motorista.js', 'gestor.js', 'aulas.js', 'supervisores.js')
 
 
 def ler(p):

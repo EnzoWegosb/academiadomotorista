@@ -96,7 +96,7 @@ var Store = {
       Api.sel('modulos',    'select=*&order=ordem'),
       Api.sel('perguntas',  'select=id,modulo_id,ordem,enunciado,alternativas&order=modulo_id,ordem'),
       Api.sel('config',     'select=*'),
-      Api.sel('perfis',     'select=id,papel,nome,usuario,criado_em'),
+      Api.sel('perfis',     'select=id,papel,nome,usuario,criado_em,exemplo,convidado_por'),
       Api.sel('motoristas', 'select=*'),
       Api.sel('progresso',  'select=*'),
       Api.sel('modulo_motoristas', 'select=*')
@@ -170,7 +170,10 @@ var Store = {
   /* aulas ativas que valem para um motorista: abertas a todos ou atribuídas a ele */
   atribuida: function(mot, mod){
     var m = typeof mod === 'string' ? this.mod(mod) : mod;
-    return !!m && (m.publico === 'todos' || !!((this.d.atrib[m.id] || {})[mot]));
+    if(!m) return false;
+    if(m.publico === 'todos') return true;
+    if(m.publico === 'exemplos'){ var d = this.motorista(mot); return !!d && /^EXEMPLO/.test(d.observacoes || '') }
+    return !!((this.d.atrib[m.id] || {})[mot]);
   },
   modsDe: function(mot){
     return this.d.modulos.filter(function(m){ return this.atribuida(mot, m) }, this);
@@ -274,6 +277,7 @@ var MENU_GES = [
   {h:'#/gestor', t:'Visão geral', i:'grafico'},
   {h:'#/gestor/treinamentos', t:'Gestão de Treinamentos', i:'pessoas'},
   {h:'#/gestor/aulas', t:'Aulas', i:'play'},
+  {h:'#/gestor/supervisores', t:'Supervisores', i:'escudo'},
   {h:'#/gestor/novo', t:'Convidar motorista', i:'seta'}
 ];
 function menu(){ return Sessao.perfil === 'gestor' ? MENU_GES : MENU_MOT }
@@ -383,6 +387,7 @@ function desenha(){
   else if(a === '#/gestor/treinamentos')          c = telaGestorTreinamentos();
   else if(a === '#/gestor/novo')                  c = telaGestorForm(null);
   else if(a === '#/gestor/aulas')                 c = telaAulas();
+  else if(a === '#/gestor/supervisores')          c = telaSupervisores();
   else if(a.indexOf('#/gestor/aula/') === 0)      c = telaAulaForm(a.split('/')[3]);
   else                                            c = telaGestor();
 

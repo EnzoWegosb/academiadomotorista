@@ -594,3 +594,10 @@ textarea.in{resize:vertical;min-height:80px}
   .aula-l{flex-direction:column;align-items:flex-start}
   .mot-l{grid-template-columns:1fr}
 }
+/* opção "todos os motoristas" acima da lista */
+.todos-op{display:flex;align-items:center;gap:12px;padding:13px 15px;border:1.5px solid var(--line2);border-radius:14px;cursor:pointer;background:var(--surf)}
+.todos-op.on{border-color:var(--ink);background:var(--surf2)}
+.todos-op input{width:19px;height:19px;flex:none;accent-color:#0A0E17}
+.todos-op input:disabled{cursor:not-allowed}
+
+@media screen and (max-width:420px){ .mot-acoes{flex-direction:row;flex-wrap:wrap} .bts.mot-acoes .bt{width:auto} }
